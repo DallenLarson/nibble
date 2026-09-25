@@ -42,6 +42,19 @@ public partial class App : Application
             return;
         }
 
+        // What a script or a test calls: ask the release feed, fetch the installer if there is
+        // one, write what happened to updates/last-check.json, and exit without a window. It is
+        // answered here, before the single-instance hand-off, so it also works while the
+        // browser is open.
+        if (Environment.GetCommandLineArgs()
+            .Any(a => a.Equals("--check-updates", StringComparison.OrdinalIgnoreCase)))
+        {
+            Store.PerformPendingReset();
+            Settings = Store.LoadSettings();
+            RunUpdateCheckHeadless();
+            return;
+        }
+
         // One browser per user: a second launch opens a tab (or private window) in the
         // running one instead of a second process fighting over the engine profile.
         _instance = new SingleInstance();
@@ -65,6 +78,16 @@ public partial class App : Application
         Store.PerformPendingReset();
         Store.MigrateLegacy();
         Settings = Store.LoadSettings();
+
+        // An update downloaded last time is applied now, before anything is on screen: the
+        // installer replaces this build and starts the new one.
+        Updater.CleanUp();
+        if (Settings.Updates && Updater.PendingInstaller(out var pendingVersion) is { } pending &&
+            Updater.ApplyAndExit(pending, pendingVersion))
+        {
+            Environment.Exit(0);
+            return;
+        }
 
         // The built-in pages carry the theme assets next to them, so lay those down first:
         // a theme is a folder the new tab page loads by relative path.
@@ -96,6 +119,51 @@ public partial class App : Application
 
         if (request.Private) OpenPrivateWindow(request.Url);
         else ShowBrowser(request.Url);
+
+        // A version that changed under the user gets said out loud, once, and the background
+        // look for a newer one starts a few seconds later so a cold start stays a cold start.
+        var previous = Settings.LastVersion;
+        if (previous.Length > 0 &&
+            !string.Equals(previous, Updater.Current.ToString(), StringComparison.Ordinal))
+        {
+            _normal?.AnnounceUpdate(previous);
+        }
+        Settings.LastVersion = Updater.Current.ToString();
+        Store.SaveSettings(Settings);
+
+        _normal?.ScheduleUpdateCheck(TimeSpan.FromSeconds(8));
+    }
+
+    /// <summary>
+    /// The --check-updates path: no window, no engine, no waiting for a user. It asks the feed,
+    /// fetches the installer when there is a newer release, writes what happened to
+    /// updates/last-check.json, and exits with 0 when there is nothing to do, 2 when the feed
+    /// could not be read and 3 when the download did not arrive intact.
+    /// </summary>
+    private void RunUpdateCheckHeadless()
+    {
+        var release = Updater.FetchAsync().GetAwaiter().GetResult();
+        if (release is null)
+        {
+            Updater.WriteStatus(Settings.Updates, "unreachable", error: "the release feed could not be read");
+            Environment.Exit(2);
+            return;
+        }
+
+        Settings.LastUpdateCheck = DateTimeOffset.Now;
+        Store.SaveSettings(Settings);
+
+        if (!Updater.IsNewer(release.Version))
+        {
+            Updater.WriteStatus(Settings.Updates, "up-to-date", release);
+            Environment.Exit(0);
+            return;
+        }
+
+        var file = Updater.DownloadAsync(release).GetAwaiter().GetResult();
+        Updater.WriteStatus(Settings.Updates, file is null ? "download-failed" : "ready", release, file,
+            file is null ? "the installer did not arrive intact" : null);
+        Environment.Exit(file is null ? 3 : 0);
     }
 
     /// <summary>Opens the normal window, or focuses the one that is already there.</summary>

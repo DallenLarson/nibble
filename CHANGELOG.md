@@ -1,5 +1,38 @@
 # Nibble changelog
 
+## 1.1.0 — Nibble updates itself
+
+**A Nibble that is installed keeps itself current.** It asks its own release feed (GitHub's
+latest release for this repository), and if there is a newer version it downloads that
+release's installer and applies it **at the next launch** — not while somebody is reading
+something, and not by pulling the window out from under them. On that next start the update is
+applied before any window exists: the installer replaces the build, starts the new one, and the
+new build says so once — *"Updated to Nibble 1.1.0 — you were on 1.0.2"* — with the release
+page one click away.
+
+- **Nothing else changes about a start.** The check runs about eight seconds after the window
+  is up, at most once every six hours, and after the update has been applied it stays quiet
+  until a newer release exists.
+- **The menu says where it stands**: `Check for updates` with the last check behind it, or
+  `Update to Nibble x.y.z — installs when you restart`. The toast that says an update is ready
+  has a *restart now* action for people who would rather not wait.
+- **`--check-updates`** does the whole thing without a window and writes what happened to
+  `%AppData%\Nibble\updates\last-check.json`, which is what the test and any script use.
+- **A copy that cannot install cannot loop.** The attempt is recorded before the installer is
+  started, and the same version is not tried again for six hours; installers that are not newer
+  than what is running are deleted on the next launch.
+
+**Honest limits**, in the README too: the download is trusted because it came from this
+repository over TLS, and nothing in an unsigned build can *prove* the installer is ours — that
+needs the code-signing certificate, which is still the first thing on the launch checklist. The
+size the feed reports is checked and a file that does not match is thrown away. On a machine
+with Smart App Control on, the downloaded installer is refused like any other unsigned binary.
+And this is the one request Nibble makes without being asked: **Menu → Check for updates**
+shows it, and `Settings.Updates` turns it off completely (the profile keeps
+`"Updates": false`).
+
+The shell's `WM_SETCURSOR` handling from 1.0.2 is unchanged, and so is everything else.
+
 ## 1.0.2 — the pointer stops flickering over buttons
 
 **The bug:** hovering a toolbar button made the pointer flicker between the hand and the

@@ -38,7 +38,7 @@ drift away from the app.
 ## Install
 
 **[Download the installer](https://github.com/DallenLarson/nibble/releases/latest)** —
-`Nibble-1.0.2-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
+`Nibble-1.1.0-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
 would rather not install to.)
 
 It is a per-user Inno Setup installer — no administrator prompt, files in
@@ -51,7 +51,7 @@ Build the browser and the installer in one command:
 ```
 powershell -File tools/package.ps1
   -> dist/Nibble.exe              2.2 MB, the whole browser
-  -> dist/Nibble-1.0.2-Setup.exe  the installer
+  -> dist/Nibble-1.1.0-Setup.exe  the installer
 ```
 
 That needs the .NET SDK, and [Inno Setup 6](https://jrsoftware.org/isdl.php) for the installer
@@ -61,6 +61,31 @@ That needs the .NET SDK, and [Inno Setup 6](https://jrsoftware.org/isdl.php) for
 > on, Windows refuses to run unsigned binaries — not a warning, a block. See
 > [Before you ship it to strangers](#before-you-ship-it-to-strangers); it is the one thing
 > standing between this source and a stranger's PC.
+
+## Updates
+
+Nibble keeps an installed copy current by itself. Eight seconds after a window is up — at most
+once every six hours — it asks its own release feed
+(`https://api.github.com/repos/DallenLarson/nibble/releases/latest`) whether a newer version
+exists. If one does, it downloads the `Nibble-<version>-Setup.exe` that release carries into
+`%AppData%\Nibble\updates` and installs it **at the next launch**, before any window exists:
+the installer replaces the build, starts the new one, and the new build says so once. Nothing
+about the profile is touched.
+
+Menu → **Check for updates** does it on demand and shows where it stands. When an update is
+ready the toast offers *restart now* for anyone who would rather not wait. `--check-updates`
+does the whole thing without a window and writes what happened to
+`updates/last-check.json` (state, newest version, whether the installer came down) — that is
+what the test and any script read.
+
+**Honest limits.** The download is trusted because it came from this repository over TLS;
+*nothing in an unsigned build can prove the installer is ours*, which is what a code-signing
+certificate fixes. The size the feed reports is checked and a file that does not match is
+thrown away, a copy that cannot install is not retried for six hours (so a broken update cannot
+loop), and installers that are not newer than what is running are deleted on the next launch.
+On a machine with Smart App Control on, the downloaded installer is refused like any other
+unsigned binary. This is also the only request Nibble makes without being asked —
+`Settings.Updates` turns it off, see [Telemetry and privacy](#telemetry-and-privacy).
 
 ## Run it
 
@@ -84,6 +109,8 @@ Nibble.exe --private <url>              a private window pointed at a page
 Nibble.exe --new-window                 a second normal window
 Nibble.exe --register-browser           what an installer calls: write the browser entries
 Nibble.exe --unregister-browser         what an uninstaller calls: take them back out
+Nibble.exe --check-updates              ask the release feed, fetch the installer, write the
+                                        result to updates/last-check.json, exit (no window)
 ```
 
 **One browser per user.** A second launch does not start a second copy — it hands its
@@ -449,6 +476,15 @@ Nibble has **no telemetry**. No analytics endpoints, no crash reporting service,
 only update path is Windows/Edge Update keeping the shared engine current. The tracker
 shield's counts live in `stats.json` and never leave the machine.
 
+One request is Nibble's own, and it is worth naming: **the update check**. About eight seconds
+after a window comes up, at most once every six hours, it asks
+`https://api.github.com/repos/DallenLarson/nibble/releases/latest` for this repository's newest
+release — a plain HTTPS GET for a public page, with no identifiers and nothing about you in it.
+If the release is newer, the installer that release carries is downloaded to
+`%AppData%\Nibble\updates` and applied at the next launch. `Settings.Updates` — `"Updates":
+false` in `settings.json` — turns the whole thing off, and then Nibble makes no requests at all
+beyond the pages you visit.
+
 ## Icons, type and credits
 
 - **UI icons** — Lucide (ISC) and Simple Icons (CC0); `Icons-LICENSE.txt`.
@@ -503,10 +539,11 @@ Written down here honestly, because none of it is solved by the code:
 - **The binary is unsigned.** On a Windows 11 machine with Smart App Control on, Windows
   refuses to run it at all. A code-signing certificate or the Microsoft Store is the fix;
   turning Smart App Control off is one-way, so that is not a deployment strategy.
-- **Nothing updates it.** The installer, the Start-menu entries and the uninstaller are real
-  and tested, but no build tells a user a newer one exists. WebView2 keeps the *engine*
-  current; shell fixes still need an update check (Squirrel/NetSparkle or an MSIX), or a
-  README that says "check the releases page".
+- **Updates work from 1.0.2 onward, but nothing before that can be updated.** Installs from
+  1.0.2 and 1.1.0 and later keep themselves current (see [Updates](#updates)); earlier builds
+  have no updater in them and need one manual download. An installed copy is also only as
+  updatable as the release it can reach: no signing means no way to prove a downloaded
+  installer is really Nibble's.
 - **The name has not been cleared.** "Nibble" is a common word: the Microsoft Store name and
   a trademark search (per jurisdiction) are both still open. `installer/Nibble.iss` names
   `Dallen Larson` as the publisher and links this repository; `LICENSE` is MIT, held by the
@@ -550,6 +587,7 @@ tools/InstallerTest.ps1  installs silently, runs the installed browser, uninstal
 tools/Shots.ps1          regenerates the screenshots above from the shipping build
 tools/SocialCard.ps1     the picture GitHub shows when a Nibble link is shared
 tools/CursorProbe.ps1    parks the pointer on every control and reports a flickering cursor
+tools/UpdateTest.ps1     builds a fake newer release and makes the installed Nibble update itself
 tools/Bench.ps1          cold-start and memory numbers
 tools/*Probe.ps1         window, popup, tooltip and layout probes used to verify changes
 ```
@@ -579,15 +617,23 @@ node tools/PrivatePageTest.js        # 13
 node tools/WaterPhysicsTest.js       # 11
 dotnet publish tools/CommandTests -c Release -r win-x64 --self-contained false ^
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o scratch/tests
-scratch\tests\CommandTests.exe               # 27
+scratch\tests\CommandTests.exe       # 39, including the updater's feed parsing
 ```
 
 Windows-only, and needed for anything that touches the shell:
 
 ```
 powershell -File tools/SmokeTest.ps1   -Exe dist\Nibble.exe -Profile scratch\smoke-profile
-powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.0.2-Setup.exe
+powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.1.0-Setup.exe
+powershell -File tools/UpdateTest.ps1            # builds a 9.9.9 "release" and updates into it
 ```
+
+`UpdateTest.ps1` is the one that proves the updater end to end without publishing anything: it
+builds a fake newer installer with `ISCC /DAppVersion=9.9.9`, writes a feed in GitHub's shape
+next to it, runs the installed Nibble with `NIBBLE_UPDATE_FEED` pointed at that feed, and checks
+that the next launch downloaded, applied and came back — then puts the real version back. It
+exists because the updater's whole job is to run an installer it downloaded itself, and that is
+exactly the kind of code that is wrong the first time.
 
 `InstallerTest.ps1` installs silently, checks every trace the installer should leave, runs the
 installed browser, uninstalls silently, and checks the traces are gone **and the profile is
@@ -596,4 +642,5 @@ not** — 16 checks. On a machine with Smart App Control on, the uninstaller its
 
 Because this machine blocks freshly built DLLs under Application Control, the .NET suites have
 to be published as single-file executables to run.
+
 

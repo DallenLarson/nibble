@@ -22,11 +22,14 @@ function Run([string]$label, [scriptblock]$body) {
     try { & $body } catch { $script:failures++; "FAILED: $_" }
 }
 
-Run "command bar, calculator, converter, palette, motion helpers (27)" {
+Run "command bar, calculator, converter, palette, motion helpers, updater feed (39)" {
     $exe = Join-Path $scratch "CommandTests.exe"
     & dotnet publish (Join-Path $root "tools\CommandTests\CommandTests.csproj") -c Release -r win-x64 `
         --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
         -o $scratch -v q | Out-Null
+    # Without this, a suite that no longer compiles quietly runs yesterday's exe and reports
+    # green - which is the one thing a test runner must never do.
+    if ($LASTEXITCODE -ne 0) { throw "CommandTests did not build" }
     & $exe
     if ($LASTEXITCODE -ne 0) { throw "CommandTests failed" }
 }

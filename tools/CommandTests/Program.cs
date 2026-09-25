@@ -32,6 +32,42 @@ Check("2 gb to mb", Calculator.TryConvert("2 gb to mb", out var c5) && c5.Starts
 Check("5 km to kg rejected", !Calculator.TryConvert("5 km to kg", out _));
 
 // ---- scopes and matching -----------------------------------------------------------
+// ---- the updater's reading of a release feed ---------------------------------------
+Check("v1.2.3 and 1.2.3 parse", Updater.ParseTag("v1.2.3") == new Version(1, 2, 3) &&
+    Updater.ParseTag("1.2.3") == new Version(1, 2, 3));
+Check("v1.2 parses as 1.2.0", Updater.ParseTag("v1.2") == new Version(1, 2, 0));
+Check("nonsense tags are rejected", Updater.ParseTag("nightly") is null && Updater.ParseTag("") is null);
+var oneNewer = new Version(Updater.Current.Major, Updater.Current.Minor, Updater.Current.Build + 1);
+Check("a newer tag is newer", Updater.IsNewer(oneNewer), $"{Updater.Current} -> {oneNewer}");
+Check("the running version is not newer", !Updater.IsNewer(Updater.Current));
+Check("an older tag is not newer", !Updater.IsNewer(new Version(0, 9, 9)));
+
+const string feedJson = """
+{
+  "tag_name": "v2.1.0",
+  "body": "notes",
+  "html_url": "https://github.com/DallenLarson/nibble/releases/tag/v2.1.0",
+  "assets": [
+    { "name": "Nibble-2.0.0-Setup.exe", "size": 11, "browser_download_url": "https://example.invalid/old.exe" },
+    { "name": "Nibble-2.1.0-Setup.exe", "size": 22, "browser_download_url": "https://example.invalid/new.exe" },
+    { "name": "Nibble.exe", "size": 33, "browser_download_url": "https://example.invalid/portable.exe" },
+    { "name": "notes.txt", "size": 44, "browser_download_url": "https://example.invalid/notes.txt" }
+  ]
+}
+""";
+var release = Updater.ParseRelease(feedJson);
+Check("a release parses", release is not null);
+Check("the tag decides the version", release?.Version == new Version(2, 1, 0), release?.Version.ToString() ?? "none");
+Check("the newest installer asset is picked, not the portable exe",
+    release?.InstallerName == "Nibble-2.1.0-Setup.exe" &&
+    release?.InstallerUrl == "https://example.invalid/new.exe" &&
+    release?.InstallerSize == 22,
+    release?.InstallerName ?? "none");
+Check("the notes and page come across", release?.Notes == "notes" && (release?.PageUrl.Contains("v2.1.0") ?? false));
+Check("a feed with no installer still parses as a release",
+    Updater.ParseRelease("""{ "tag_name": "v9.9.9" }""")?.Version == new Version(9, 9, 9));
+Check("junk is not a release", Updater.ParseRelease("[]") is null);
+
 var inputs = new CommandInputs
 {
     Tabs =

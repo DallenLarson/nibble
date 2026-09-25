@@ -17,7 +17,11 @@
 ; =====================================================================
 
 #define AppName        "Nibble"
-#define AppVersion     "1.0.2"
+// Overridable from the command line (ISCC /DAppVersion=9.9.9), which is how the self-update
+// test builds a "newer release" without touching this file.
+#ifndef AppVersion
+#define AppVersion     "1.1.0"
+#endif
 #define AppPublisher   "Dallen Larson"
 #define AppUrl         "https://github.com/DallenLarson/nibble"
 #define AppExeName     "Nibble.exe"
@@ -86,6 +90,9 @@ Name: "{autodesktop}\{#AppName}";          Filename: "{app}\{#AppExeName}"; Task
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; \
   Flags: nowait postinstall skipifsilent; Check: DotNet8DesktopInstalled
+; A self-update (the browser's own updater passes /SELFUPDATE) has no finish page to offer a
+; checkbox on, and the person is expecting Nibble back, not a closed browser: start it again.
+Filename: "{app}\{#AppExeName}"; Flags: nowait; Check: IsSelfUpdate
 ; only offered when the runtimes really are missing - see MissingDependencies below
 Filename: "https://dotnet.microsoft.com/download/dotnet/8.0"; \
   Description: "Download the Microsoft .NET 8 Desktop Runtime (required to run Nibble)"; \
@@ -210,6 +217,13 @@ begin
   Result := NeedsWebView2;
 end;
 
+// The browser's own updater runs Setup silently with /SELFUPDATE: it wants the new build
+// started afterwards, because the window it replaced did not come back to a finish page.
+function IsSelfUpdate(): Boolean;
+begin
+  Result := WizardSilent and (Pos('/SELFUPDATE', Uppercase(GetCmdTail())) > 0);
+end;
+
 function InitializeSetup(): Boolean;
 var
   Missing: String;
@@ -264,3 +278,4 @@ begin
       DelTree(DataDir, True, True, True);
   end;
 end;
+

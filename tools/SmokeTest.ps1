@@ -15,7 +15,8 @@ $shot = Join-Path $PSScriptRoot "Shot.ps1"
 $failures = 0
 function Step([string]$label, [string]$result) {
     $ok = $result -match "CLICKED|SET|OK"
-    if (-not $ok) { $failures++ }
+    # $script:, or the increment lands on a local copy and the summary claims nothing failed.
+    if (-not $ok) { $script:failures++ }
     "{0}  {1}  {2}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $label, $result.Trim()
 }
 function Click([int]$id, [string]$name) {
@@ -66,7 +67,7 @@ Step "menu opens"        (Click $id "Menu")
 Start-Sleep -Milliseconds 900
 $menu = Texts $id
 Step "menu lists the theme shop" $(if (($menu -join " ") -match "Theme shop") { "OK" } else { "missing" })
-Step "menu lists the version"    $(if (($menu -join " ") -match "Nibble 1\.0") { "OK" } else { "missing" })
+Step "menu lists the version"    $(if (($menu -join " ") -match "Nibble \d+\.\d+") { "OK" } else { "missing" })
 Grab $id "$Shots-4-menu.png" $null
 Step "theme shop opens"  (ClickLike $id "Theme shop*")
 Start-Sleep -Seconds 2

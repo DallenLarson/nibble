@@ -10,7 +10,7 @@
     <RootNamespace>Nibble</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\nibble.ico</ApplicationIcon>
-    <Version>1.0.2</Version>
+    <Version>1.1.0</Version>
     <Company>Nibble</Company>
     <Product>Nibble</Product>
     <Description>A tiny, tasty pixel-perfect browser that rides on the WebView2 runtime Windows already ships.</Description>
@@ -71,3 +71,4 @@
   </Target>
 
 </Project>
+

@@ -33,6 +33,20 @@ public sealed class Settings
     /// <summary>Let sites use camera, microphone, location and notifications without asking.</summary>
     public bool AllowSitePermissions { get; set; }
 
+    /// <summary>
+    /// Check the release feed for a newer Nibble and install it at the next launch. On by
+    /// default, because a browser that never updates is a browser with known bugs in it; it is
+    /// the only network request Nibble makes without being asked, so it can be turned off in
+    /// the menu.
+    /// </summary>
+    public bool Updates { get; set; } = true;
+
+    /// <summary>When the feed was last asked, so a launch is not a network call.</summary>
+    public DateTimeOffset LastUpdateCheck { get; set; }
+
+    /// <summary>The version that last ran here, so a change can be announced once.</summary>
+    public string LastVersion { get; set; } = string.Empty;
+
     /// <summary>Remembered window rectangle; 0 means "never positioned yet".</summary>
     public double WindowWidth { get; set; }
     public double WindowHeight { get; set; }

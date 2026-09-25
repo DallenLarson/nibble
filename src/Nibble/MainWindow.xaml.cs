@@ -1886,6 +1886,8 @@ public partial class MainWindow : Window
             }, BrowserRegistration.IsDefaultBrowser()));
         MenuList.Children.Add(PopupRow(Icons.Copy, "Copy diagnostics",
             "version · engine · profile", () => { ClosePopups(); CopyDiagnostics(); }));
+        MenuList.Children.Add(PopupRow(Icons.Download, UpdateRowLabel(), UpdateRowHint(),
+            () => { ClosePopups(); CheckForUpdates(manual: true); }, _updateReady is not null));
         MenuList.Children.Add(PopupRow(Icons.Check, $"Nibble {Version}", "WebView2 engine", null));
 
         OpenPopup(MenuPopup, MenuButton);
@@ -2683,6 +2685,141 @@ public partial class MainWindow : Window
         var selected = (Brush)FindResource("AccentSoft");
         for (var i = 0; i < _paletteRows.Count; i++)
             _paletteRows[i].Background = i == _paletteSel ? selected : Brushes.Transparent;
+    }
+
+    // =====================================================================
+    //  updates
+    // =====================================================================
+
+    private UpdateRelease? _updateReady;
+    private bool _updateBusy;
+    private DispatcherTimer? _updateTimer;
+
+    /// <summary>
+    /// Asks the release feed once, a little after the window is up, unless it was asked
+    /// recently. App calls this; the menu row calls CheckForUpdates directly.
+    /// </summary>
+    public void ScheduleUpdateCheck(TimeSpan delay)
+    {
+        if (!App.Settings.Updates) return;
+        if (DateTimeOffset.Now - App.Settings.LastUpdateCheck < Updater.CheckEvery) return;
+
+        _updateTimer = new DispatcherTimer { Interval = delay };
+        _updateTimer.Tick += (_, _) =>
+        {
+            _updateTimer?.Stop();
+            _updateTimer = null;
+            CheckForUpdates(manual: false);
+        };
+        _updateTimer.Start();
+    }
+
+    /// <summary>
+    /// Checks the feed, downloads the installer if the release is newer, and says so. A manual
+    /// check always answers, because somebody asked; the automatic one stays quiet unless it
+    /// found something, so starting the browser never announces "no news".
+    /// </summary>
+    private async void CheckForUpdates(bool manual)
+    {
+        if (_updateBusy) return;
+        _updateBusy = true;
+        if (manual)
+            ShowToast("Checking for updates", "Asking GitHub for the newest release…",
+                Icons.Download, null, 1800);
+
+        try
+        {
+            var release = await Updater.FetchAsync();
+            App.Settings.LastUpdateCheck = DateTimeOffset.Now;
+            Store.SaveSettings(App.Settings);
+
+            if (release is null)
+            {
+                Updater.WriteStatus(App.Settings.Updates, "unreachable", error: "the release feed could not be read");
+                if (manual)
+                    ShowToast("Could not check", "Nibble could not reach the release feed.",
+                        Icons.Offline, null, 3600);
+                return;
+            }
+
+            if (!Updater.IsNewer(release.Version))
+            {
+                Updater.WriteStatus(App.Settings.Updates, "up-to-date", release);
+                if (manual)
+                    ShowToast($"Nibble {Updater.Current} is the newest", "Nothing to install.",
+                        Icons.Check, null, 3200);
+                return;
+            }
+
+            ShowToast($"Downloading Nibble {release.Version}", "It installs when you next start Nibble.",
+                Icons.Download, null, 2600);
+            var file = await Updater.DownloadAsync(release);
+            Updater.WriteStatus(App.Settings.Updates, file is null ? "download-failed" : "ready", release, file,
+                file is null ? "the installer did not arrive intact" : null);
+
+            if (file is null)
+            {
+                ShowToast("The update did not download", "Nibble will try again next time.",
+                    Icons.Offline, null, 3600);
+                return;
+            }
+
+            _updateReady = release;
+            ShowToast($"Nibble {release.Version} is ready", "Restart Nibble to install it.",
+                Icons.Download, RestartToUpdate, 7000);
+        }
+        catch (Exception ex)
+        {
+            // Deliberately not written to nibble.log: being offline is not an error worth a log
+            // line, and the log's promise is that it only fills up when something throws. The
+            // status file keeps the reason for anyone who looks.
+            Updater.WriteStatus(App.Settings.Updates, "error", error: ex.Message);
+        }
+        finally
+        {
+            _updateBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Hands over to the downloaded installer and closes this build. The installer replaces the
+    /// files and starts the new one, so the window the user is looking at goes away - which is
+    /// why this only ever happens because somebody asked for it.
+    /// </summary>
+    public void RestartToUpdate()
+    {
+        if (Updater.PendingInstaller(out var version) is not { } installer) return;
+        Updater.ApplyAndExit(installer, version);   // does not return when it works
+    }
+
+    /// <summary>Menu row text: what the updater is doing, or what it last found.</summary>
+    private string UpdateRowLabel() =>
+        _updateBusy ? "Checking for updates…"
+        : _updateReady is { } ready ? $"Update to Nibble {ready.Version}"
+        : "Check for updates";
+
+    private string UpdateRowHint()
+    {
+        if (_updateBusy) return "one moment";
+        if (_updateReady is not null) return "installs when you restart";
+        var at = App.Settings.LastUpdateCheck;
+        if (at == default) return App.Settings.Updates ? "GitHub releases" : "updates are off";
+        var ago = DateTimeOffset.Now - at;
+        var when = ago < TimeSpan.FromMinutes(1) ? "just now"
+            : ago < TimeSpan.FromHours(1) ? $"{Math.Max(1, (int)ago.TotalMinutes)} min ago"
+            : ago < TimeSpan.FromDays(1) ? $"{Math.Max(1, (int)ago.TotalHours)} h ago"
+            : $"{Math.Max(1, (int)ago.TotalDays)} d ago";
+        return App.Settings.Updates ? $"checked {when}" : $"off · checked {when}";
+    }
+
+    /// <summary>
+    /// The first window after an update says so once: a changed version is a fact the user
+    /// should hear about, and the release page is one click away.
+    /// </summary>
+    public void AnnounceUpdate(string fromVersion)
+    {
+        ShowToast($"Updated to Nibble {Updater.Current}", $"You were on {fromVersion}.",
+            Icons.Sparkle, () => OpenUrlInNewTab("https://github.com/DallenLarson/nibble/releases/latest"), 6000);
     }
 
     // =====================================================================

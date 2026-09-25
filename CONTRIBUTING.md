@@ -41,6 +41,18 @@ window, find bar, closing — which needs a running build:
 powershell -File tools/SmokeTest.ps1 -Exe dist\Nibble.exe -Profile scratch\smoke-profile
 ```
 
+And the updater, which is the one piece of the shell that runs an installer it downloaded
+itself — so it has a test that builds a fake "newer release" and watches Nibble update into it:
+
+```
+powershell -File tools/UpdateTest.ps1        # needs an installed Nibble and Inno Setup 6
+```
+
+**Cutting a release:** bump `<Version>` in `src/Nibble/Nibble.csproj`, the version in
+`src/Nibble/app.manifest`, `AppVersion` in `installer/Nibble.iss`, add a
+`docs/release-notes-v<version>.md`, then tag `v<version>` — the workflow builds the installer
+and publishes the release, and every installed copy picks it up on its next launch.
+
 ## What the code looks like
 
 - `src/Nibble/Controls/` — the pixel-art primitives: `PixelPanel` (stair-stepped corners),
