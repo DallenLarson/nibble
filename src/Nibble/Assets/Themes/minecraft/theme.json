@@ -1,0 +1,34 @@
+{
+  "id": "minecraft",
+  "name": "Grass Block",
+  "author": "Nibble",
+  "tagline": "Stone buttons, dirt underfoot, and a view of the sky.",
+  "base": "light",
+  "accent": "#6AA84F",
+  "colors": {
+    "WindowBg": "#C6C6C6",
+    "ChromeBg": "#C6C6C6",
+    "SubBg": "#B4B4B4",
+    "CardBg": "#C6C6C6",
+    "Hover": "#D8D8D8",
+    "Active": "#A8A8A8",
+    "Hairline": "#8B8B8B",
+    "HairlineStrong": "#2B2B2B",
+    "Ink": "#2B2B2B",
+    "Ink2": "#4A4A4A",
+    "Ink3": "#6E6E6E",
+    "Track": "#A0A0A0",
+    "Scroll": "#7A7A7A",
+    "ButtonStroke": "#2B2B2B",
+    "ButtonStrokeThickness": 2
+  },
+  "page": { "css": "theme.css", "js": "theme.js" },
+  "preview": {
+    "sky": "#7FA9F0",
+    "ground": "#866043",
+    "button": "#C6C6C6",
+    "text": "#2B2B2B",
+    "accent": "#6AA84F",
+    "texture": "blocks/grass_side.png"
+  }
+}

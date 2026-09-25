@@ -1,0 +1,53 @@
+Nibble 1.0
+==========
+
+A tiny, tasty web browser for Windows.
+
+
+What this installs
+------------------
+
+  * Nibble.exe        the whole browser, one 2.2 MB file
+  * this README and the changelog
+  * the licences for the icons and fonts that ship inside it
+
+
+Where it goes
+-------------
+
+This is a per-user install: no administrator prompt, nothing machine-wide.
+
+  * Program files   %LocalAppData%\Programs\Nibble
+  * Your profile    %AppData%\Nibble   (history, bookmarks, settings, cookies)
+
+Your profile is never touched by installing or uninstalling. Uninstalling asks
+separately whether you also want it deleted.
+
+
+What it needs
+-------------
+
+Both of these ship with Windows 10 and 11, so on most PCs there is nothing to do:
+
+  * Microsoft Edge WebView2 Runtime   - the engine Nibble drives
+  * Microsoft .NET 8 Desktop Runtime  - what Nibble itself is built on
+
+If either is missing, this installer will say so and you can fetch it from the
+links it gives you. Nibble says the same thing at first launch.
+
+
+Making it your default browser
+------------------------------
+
+The installer can add Nibble to Windows' browser list. Windows does not let any
+program make itself the default - only you can choose, in Settings - so after
+installing, use Menu > "Set as default browser", or Windows Settings > Apps >
+Default apps > Nibble.
+
+
+Uninstalling
+------------
+
+Settings > Apps > Installed apps > Nibble > Uninstall, or the Start-menu entry.
+Your browsing profile is kept unless you say otherwise, so reinstalling brings
+everything back.

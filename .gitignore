@@ -1,0 +1,21 @@
+# builds
+bin/
+obj/
+dist/
+scratch/
+*.user
+*.suo
+.vs/
+
+# the app's own data, if anyone ever points a profile inside the repo
+WebView2/
+history.json
+session.json
+settings.json
+stats.json
+bookmarks.json
+reset.pending
+nibble.log
+
+# screenshots and diagrams made while working
+*.tmp.png

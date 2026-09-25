@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Page didn't load</title>
+<style>
+  @font-face {
+    font-family: 'Silkscreen';
+    font-style: normal;
+    font-weight: 400;
+    src: url(data:font/ttf;base64,__FONT_REGULAR__) format('truetype');
+  }
+
+  :root {
+    --paper: #ffffff; --ink: #1d1d1f; --ink-2: #6e6e73; --ink-3: #b0b0b6;
+    --line: #e6e6eb; --line-2: #d8d8de; --accent: #a3e635; --accent-ink: #16250a;
+    --cloud: #ededf2; --hover: #f4f4f7;
+    --spring: cubic-bezier(.22, 1.35, .28, 1);
+    --soft: cubic-bezier(.32, .72, 0, 1);
+  }
+  body.dark {
+    --paper: #1c1c1e; --ink: #f2f2f7; --ink-2: #a1a1a6; --ink-3: #6e6e73;
+    --line: #38383c; --line-2: #48484e; --accent: #b4f03c; --accent-ink: #16250a;
+    --cloud: #33333a; --hover: #2c2c2e;
+  }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 14px/1.55 "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+    display: grid; place-items: center; text-align: center;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { padding: 34px; max-width: 540px; }
+  .pixel { font-family: 'Silkscreen', monospace; }
+  h1 { font-size: 19px; font-weight: 600; margin: 24px 0 10px; letter-spacing: -.01em; }
+  .why { color: var(--ink-2); margin: 0 0 4px; font-size: 13.5px; }
+
+  .host { margin-top: 20px; display: flex; align-items: center; justify-content: center; gap: 9px; }
+  .host .dot { width: 9px; height: 9px; background: var(--accent); }
+  .host .name { font-family: 'Silkscreen', monospace; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }
+
+  .urlBox {
+    margin: 12px auto 0; padding: 9px 13px; max-width: 460px;
+    background: var(--hover); border: 1px solid var(--line);
+    font-size: 11.5px; color: var(--ink-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+  button {
+    font: 600 13px/1 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    padding: 13px 18px; border: 1px solid var(--line-2); background: var(--paper); color: var(--ink);
+    cursor: pointer; position: relative;
+    transform-origin: 50% 50%;
+    transition: transform .32s var(--spring), background .14s ease, border-color .14s ease;
+  }
+  button:hover { background: var(--hover); border-color: var(--ink-3); transform: scale(0.985, 1.015); }
+  button:active { transform: scale(1.04, 0.93); transition-duration: .09s; }
+  button.primary {
+    background: var(--accent); border-color: transparent; color: var(--accent-ink);
+    padding: 14px 22px;
+  }
+  button.primary::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+    background: rgba(0, 0, 0, .16);
+  }
+
+  .code { margin-top: 22px; font-family: 'Silkscreen', monospace; font-size: 9px; letter-spacing: .12em; color: var(--ink-3); }
+  .art { shape-rendering: crispEdges; }
+  .badge {
+    width: 96px; height: 96px; margin: 0 auto;
+    display: grid; place-items: center;
+    background: var(--cloud); border-radius: 999px;
+    animation: badgeIn .78s var(--spring) both;
+  }
+  @keyframes badgeIn {
+    from { opacity: 0; transform: scale(0.84, 1.16); }
+    to   { opacity: 1; transform: none; }
+  }
+  .bicon { display: inline-flex; vertical-align: -3px; margin-right: 8px; }
+  .bicon svg { display: block; }
+
+  .rise { opacity: 0; transform: translateY(10px) scale(0.95, 1.05); transform-origin: 50% 100%;
+          animation: rise .6s var(--spring) forwards; }
+  .d1 { animation-delay: .04s; } .d2 { animation-delay: .1s; } .d3 { animation-delay: .16s; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001s !important;
+      transition-duration: .001s !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <script>
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.body.classList.add('dark');
+    }
+  </script>
+
+  <div class="wrap">
+    <div class="badge" id="art"></div>
+    <h1 class="rise d1" id="title">This page didn't load</h1>
+    <p class="rise d2 why" id="why">Something interrupted the connection.</p>
+
+    <div class="rise d2 host">
+      <span class="dot"></span>
+      <span class="name" id="host">address</span>
+    </div>
+    <div class="rise d2 urlBox" id="url">—</div>
+
+    <div class="rise d3 row">
+      <button class="primary" id="retry"><span class="bicon" data-icon="retry"></span>Try again</button>
+      <button id="back"><span class="bicon" data-icon="back"></span>Go back</button>
+      <button id="external"><span class="bicon" data-icon="external"></span>Open in your browser</button>
+      <button id="copy"><span class="bicon" data-icon="copy"></span>Copy address</button>
+    </div>
+
+    <div class="code" id="code"></div>
+  </div>
+
+<script>
+(() => {
+  const bridge = window.chrome && window.chrome.webview ? window.chrome.webview : null;
+  const send = (m) => bridge && bridge.postMessage(m);
+  const params = new URLSearchParams(location.search);
+  const boot = window.__nibbleError || {};
+  const url = boot.url || params.get("u") || "";
+  const message = boot.message || params.get("m") || "";
+  const code = boot.code || params.get("c") || "";
+
+  /* ---- smooth open-source icons: Lucide (ISC) ---- */
+  const ICONS = {
+    offline: "M10.94 5.274A7 7 0 0 1 15.71 10h1.79a4.5 4.5 0 0 1 4.222 6.057 M18.796 18.81A4.5 4.5 0 0 1 17.5 19H9A7 7 0 0 1 5.79 5.78 m2 2 20 20",
+    retry: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 3v5h-5 M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16 M8 16H3v5",
+    back: "m12 19-7-7 7-7 M19 12H5",
+    external: "M15 3h6v6 M10 14 21 3 M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6",
+    copy: "M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2z M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+  };
+
+  function icon(name, size, color) {
+    const d = ICONS[name] || ICONS.offline;
+    const stroke = ((size / 24) * 2).toFixed(2);
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" ` +
+      `stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+  }
+
+  document.getElementById("art").innerHTML = icon("offline", 46, "var(--ink-2)");
+  document.querySelectorAll("[data-icon]").forEach((el) => {
+    el.innerHTML = icon(el.dataset.icon, 16, "currentColor");
+  });
+
+  function host(url) {
+    try { return new URL(url).host.replace(/^www\./i, ""); } catch { return url; }
+  }
+
+  if (url) {
+    document.getElementById("url").textContent = url;
+    document.getElementById("host").textContent = host(url);
+  } else {
+    document.getElementById("host").textContent = "this address";
+    document.getElementById("url").style.display = "none";
+  }
+
+  if (message) document.getElementById("why").textContent = message;
+  if (code) document.getElementById("code").textContent = "ENGINE SAID · " + code.toUpperCase().replace(/_/g, " ");
+
+  document.getElementById("retry").addEventListener("click", () => send({ type: "retry", url }));
+  document.getElementById("back").addEventListener("click", () => send({ type: "back" }));
+  document.getElementById("external").addEventListener("click", () => send({ type: "external", url }));
+  document.getElementById("copy").addEventListener("click", () => send({ type: "copy", url }));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); send({ type: "retry", url }); }
+    if (e.key === "Escape") { e.preventDefault(); send({ type: "back" }); }
+  });
+
+  if (bridge) {
+    bridge.addEventListener("message", (e) => {
+      const m = e.data || {};
+      if (m.type === "theme") document.body.classList.toggle("dark", !!m.dark);
+      if (m.accent) document.documentElement.style.setProperty("--accent", m.accent);
+      if (m.accentInk) document.documentElement.style.setProperty("--accent-ink", m.accentInk);
+    });
+    send({ type: "ready" });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:c="clr-namespace:Nibble.Controls"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <FontFamily x:Key="PixelFont">/Nibble;component/Assets/Fonts/#Silkscreen</FontFamily>
+    <FontFamily x:Key="UIFont">Segoe UI Variable Text, Segoe UI, sans-serif</FontFamily>
+
+    <!-- ============ icon buttons: hover fill, press squish ============ -->
+    <Style x:Key="IconButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink2}" />
+        <Setter Property="Width" Value="34" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="c:Juice.SquashOnPress" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <c:PixelPanel x:Name="panel" CornerSteps="2" CornerStep="3"
+                                  Fill="{TemplateBinding Background}"
+                                  Stroke="{DynamicResource ButtonStroke}"
+                                  StrokeThickness="{DynamicResource ButtonStrokeThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </c:PixelPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="panel" Property="Fill"
+                                    Value="{Binding Path=(c:HoverTint.Brush), RelativeSource={RelativeSource TemplatedParent}, FallbackValue={StaticResource Hover}}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="panel" Property="Fill" Value="{DynamicResource Active}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.28" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="TabCloseButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="20" />
+    </Style>
+
+    <!-- ============ window controls, right-aligned, level with the tabs ============ -->
+    <Style x:Key="WindowButton" TargetType="Button">
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="c:Juice.SquashOnPress" Value="True" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink2}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <c:PixelPanel x:Name="panel" CornerSteps="0" CornerStep="1" Fill="Transparent"
+                                      Stroke="{DynamicResource ButtonStroke}"
+                                      StrokeThickness="{DynamicResource ButtonStrokeThickness}" />
+                        <ContentPresenter x:Name="glyph" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="panel" Property="Fill" Value="{DynamicResource Hover}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="panel" Property="Fill" Value="{DynamicResource Active}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Traffic-light hovers: close red, minimize yellow, maximize green. -->
+    <Style x:Key="MinimizeWindowButton" TargetType="Button" BasedOn="{StaticResource WindowButton}">
+        <Setter Property="c:HoverTint.Brush" Value="{DynamicResource MinTint}" />
+    </Style>
+
+    <Style x:Key="MaximizeWindowButton" TargetType="Button" BasedOn="{StaticResource WindowButton}">
+        <Setter Property="c:HoverTint.Brush" Value="{DynamicResource MaxTint}" />
+    </Style>
+
+    <Style x:Key="CloseWindowButton" TargetType="Button" BasedOn="{StaticResource WindowButton}">
+        <Setter Property="c:HoverTint.Brush" Value="{DynamicResource CloseTint}" />
+    </Style>
+
+    <!-- ============ omnibox text ============ -->
+    <Style x:Key="OmniBox" TargetType="TextBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Ink}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource Accent}" />
+        <Setter Property="FontFamily" Value="{StaticResource UIFont}" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Focusable="False"
+                                  HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============ popup rows ============ -->
+    <Style x:Key="PopupRowButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="c:Juice.SquashOnPress" Value="True" />
+        <Setter Property="c:Juice.StretchOnHover" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <c:PixelPanel x:Name="panel" Fill="Transparent"
+                                  Stroke="{DynamicResource ButtonStroke}"
+                                  StrokeThickness="{DynamicResource ButtonStrokeThickness}"
+                                  CornerSteps="2" CornerStep="2">
+                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                    </c:PixelPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="panel" Property="Fill" Value="{DynamicResource AccentSoft}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="panel" Property="Fill" Value="{DynamicResource Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============ tooltips ============ -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Foreground" Value="{DynamicResource WindowBg}" />
+        <Setter Property="FontFamily" Value="{StaticResource UIFont}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="HasDropShadow" Value="False" />
+        <!--
+          Below the control it belongs to, never at the pointer. A mouse-placed tooltip
+          lands under the cursor as soon as the pointer moves, which takes the hover away
+          from the button, hides the tooltip, gives the hover back, and does it all again -
+          the pointer visibly flickers between the button's hand cursor and the tooltip's
+          arrow. The hamburger and downloads buttons were the ones you would notice, since
+          their tooltips are the ones people hover into.
+        -->
+        <Setter Property="Placement" Value="Bottom" />
+        <Setter Property="HorizontalOffset" Value="0" />
+        <Setter Property="VerticalOffset" Value="7" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <c:PixelPanel Fill="{DynamicResource Ink}" Stroke="Transparent" StrokeThickness="0"
+                                  CornerSteps="2" CornerStep="2" Margin="6">
+                        <ContentPresenter Margin="9,5" />
+                    </c:PixelPanel>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============ thin scrollbars for popup lists ============ -->
+    <Style x:Key="ThinScrollThumb" TargetType="Thumb">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border Background="{DynamicResource Scroll}" Width="6" Margin="1,0" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Width" Value="9" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="Transparent">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ThinScrollThumb}" />
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False" />
+                            </Track.DecreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============ primary / ghost / tile buttons (setup + settings) ============ -->
+    <Style x:Key="PrimaryButton" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource Accent}" />
+        <Setter Property="Foreground" Value="{DynamicResource AccentInk}" />
+        <Setter Property="FontFamily" Value="{StaticResource UIFont}" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Height" Value="42" />
+        <Setter Property="Padding" Value="24,0" />
+        <Setter Property="c:Juice.SquashOnPress" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}" Stroke="Transparent"
+                                      StrokeThickness="0" CornerSteps="2" CornerStep="3" Effect="{DynamicResource CardShadow}" />
+                        <ContentPresenter x:Name="content" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="panel" Property="Opacity" Value="0.9" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="panel" Property="Opacity" Value="0.94" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GhostButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink2}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource HairlineStrong}" />
+        <Setter Property="FontFamily" Value="{StaticResource UIFont}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Height" Value="42" />
+        <Setter Property="Padding" Value="20,0" />
+        <Setter Property="c:Juice.SquashOnPress" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}"
+                                  Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1"
+                                  CornerSteps="2" CornerStep="3">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}" />
+                    </c:PixelPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="panel" Property="Fill" Value="{DynamicResource Hover}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="panel" Property="Fill" Value="{DynamicResource Active}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- swatch / card tiles: hover lifts, press squishes -->
+    <Style x:Key="TileButton" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource CardBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+        <Setter Property="c:Juice.SquashOnPress" Value="True" />
+        <Setter Property="c:Juice.StretchOnHover" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}"
+                                      Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1"
+                                      CornerSteps="3" CornerStep="4" Effect="{DynamicResource CardShadow}" />
+                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="panel" Property="Stroke" Value="{DynamicResource HairlineStrong}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- focus-aware input frame (stroke turns accent while typing) -->
+    <Style x:Key="InputFrame" TargetType="{x:Type c:PixelPanel}">
+        <Setter Property="Fill" Value="{DynamicResource SubBg}" />
+        <Setter Property="Stroke" Value="{DynamicResource Hairline}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="CornerSteps" Value="2" />
+        <Setter Property="CornerStep" Value="3" />
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter Property="Stroke" Value="{DynamicResource Accent}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>

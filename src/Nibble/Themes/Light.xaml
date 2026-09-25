@@ -1,0 +1,49 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <sys:String x:Key="ThemeName">Light</sys:String>
+
+    <Color x:Key="WindowBgColor">#FFFFFFFF</Color>
+    <Color x:Key="HairlineColor">#FFE6E6EB</Color>
+    <Color x:Key="AccentColor">#FFA3E635</Color>
+    <Color x:Key="ShadowColor">#26000000</Color>
+
+    <SolidColorBrush x:Key="WindowBg" Color="{StaticResource WindowBgColor}" />
+    <SolidColorBrush x:Key="ChromeBg" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="SubBg" Color="#FFF4F4F7" />
+    <SolidColorBrush x:Key="CardBg" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="Hairline" Color="{StaticResource HairlineColor}" />
+    <SolidColorBrush x:Key="HairlineStrong" Color="#FFD8D8DE" />
+    <SolidColorBrush x:Key="Ink" Color="#FF1D1D1F" />
+    <SolidColorBrush x:Key="Ink2" Color="#FF6E6E73" />
+    <SolidColorBrush x:Key="Ink3" Color="#FFB0B0B6" />
+    <SolidColorBrush x:Key="Hover" Color="#FFEDEDF2" />
+    <SolidColorBrush x:Key="Active" Color="#FFE1E1E8" />
+    <SolidColorBrush x:Key="Accent" Color="{StaticResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentInk" Color="#FF16250A" />
+    <SolidColorBrush x:Key="AccentSoft" Color="#FFEBF9CC" />
+    <SolidColorBrush x:Key="Pink" Color="#FFFF4D79" />
+    <SolidColorBrush x:Key="Amber" Color="#FFFFC53D" />
+    <SolidColorBrush x:Key="Sky" Color="#FF37A6F0" />
+    <SolidColorBrush x:Key="CloseTint" Color="#FFFF453A" />
+    <SolidColorBrush x:Key="MinTint" Color="#FFFFCC00" />
+    <SolidColorBrush x:Key="MaxTint" Color="#FF30D158" />
+    <SolidColorBrush x:Key="Track" Color="#FFEDEDF2" />
+    <SolidColorBrush x:Key="Scroll" Color="#FFC7C7CD" />
+
+    <!-- Themes may outline buttons (the Minecraft-style theme gives them a 2 px lip). -->
+    <SolidColorBrush x:Key="ButtonStroke" Color="#00FFFFFF" />
+    <sys:Double x:Key="ButtonStrokeThickness">0</sys:Double>
+
+    <!-- private windows: deliberately its own colour, not your accent -->
+    <SolidColorBrush x:Key="PrivateFill" Color="#FFEFE9FF" />
+    <SolidColorBrush x:Key="PrivateStroke" Color="#FFD6C8FF" />
+    <SolidColorBrush x:Key="PrivateInk" Color="#FF6746C9" />
+    <SolidColorBrush x:Key="PrivateBg" Color="#FFF7F4FF" />
+
+    <DropShadowEffect x:Key="PopupShadow" BlurRadius="28" ShadowDepth="6" Direction="270"
+                      Color="{StaticResource ShadowColor}" Opacity="0.55" />
+    <DropShadowEffect x:Key="CardShadow" BlurRadius="14" ShadowDepth="2" Direction="270"
+                      Color="{StaticResource ShadowColor}" Opacity="0.35" />
+</ResourceDictionary>

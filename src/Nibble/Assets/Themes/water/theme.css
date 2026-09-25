@@ -1,0 +1,114 @@
+/* =====================================================================
+   Nibble · "Deep Water" — blue, with real water physics on the home page.
+
+   The surface itself is drawn by theme.js on a canvas (a damped spring grid, not a
+   looped animation); this file is the palette and the floating furniture above it.
+   ===================================================================== */
+
+body.theme-water {
+  --paper: #04121f;
+  --paper-2: #0a2a42;
+  --ink: #e6f6ff;
+  --ink-2: #a8cfe6;
+  --ink-3: #6e97b0;
+  --line: #123a56;
+  --line-2: #1b5578;
+  --accent: #38bdf8;
+  --accent-ink: #04202f;
+  --accent-soft: #0b3a5b;
+  --sky: #7dd3fc;
+  --hill: #0e4e77;
+  --hill-2: #0a3d5f;
+  --sun: #bae6fd;
+  --grid: rgba(125, 211, 252, .05);
+  --shadow: 0 18px 40px rgba(1, 12, 22, .55);
+  --shadow-sm: 0 3px 10px rgba(1, 12, 22, .4);
+  background: linear-gradient(#02101c 0%, #052a44 52%, #0a4a72 100%);
+}
+
+body.theme-water .water-canvas {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 58vh;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* the page's own landscape steps aside for the simulation */
+body.theme-water .hills { display: none; }
+body.theme-water .sun svg { fill: #e0f2fe; }
+body.theme-water .sun {
+  filter: drop-shadow(0 0 26px rgba(186, 230, 253, .55));
+  opacity: .9;
+}
+body.theme-water .cloud svg { opacity: .35; }
+body.theme-water .stars { opacity: .35; }
+
+/* ---- floating glass above the water ---- */
+body.theme-water .stage { position: relative; z-index: 2; }
+
+body.theme-water .clock {
+  color: #eaf8ff;
+  text-shadow: 0 6px 28px rgba(56, 189, 248, .45), 0 1px 0 rgba(255, 255, 255, .18);
+}
+body.theme-water .clock .ampm { color: #7dd3fc; }
+body.theme-water .greet { color: #cfeaf7; }
+body.theme-water .greet b { color: #7dd3fc; }
+body.theme-water .date { color: #8fb8d0; }
+body.theme-water .tip { color: #a8cfe6; text-shadow: 0 1px 0 rgba(0, 0, 0, .5); }
+body.theme-water .foot { color: #7fa8c2; }
+
+body.theme-water .field {
+  background: rgba(6, 36, 56, .62);
+  border: 1px solid rgba(125, 211, 252, .35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 16px 34px rgba(1, 12, 22, .45);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+body.theme-water .field input { color: #e6f6ff; }
+body.theme-water .field input::placeholder { color: #86aec6; }
+body.theme-water .underline {
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0), rgba(56, 189, 248, .9), rgba(56, 189, 248, 0));
+}
+body.theme-water .keycap {
+  background: rgba(125, 211, 252, .14);
+  border-color: rgba(125, 211, 252, .3);
+  color: #bfe6f8;
+}
+
+body.theme-water .tile {
+  background: rgba(10, 58, 88, .55);
+  border: 1px solid rgba(125, 211, 252, .28);
+  color: #dff2ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 14px 28px rgba(1, 12, 22, .45);
+  backdrop-filter: blur(7px) saturate(130%);
+}
+body.theme-water .tile:hover {
+  background: rgba(18, 82, 120, .7);
+  border-color: rgba(125, 211, 252, .6);
+  transform: scale(1.03, .97);
+}
+body.theme-water .tile .corner { background: #7dd3fc; }
+body.theme-water .tile-wrap::after { background: rgba(56, 189, 248, .18); }
+
+body.theme-water .chip {
+  background: rgba(10, 58, 88, .6);
+  border-color: rgba(125, 211, 252, .28);
+  color: #cfeaf7;
+  backdrop-filter: blur(6px);
+}
+body.theme-water .chip b { color: #eaf8ff; }
+body.theme-water .chip .dot { background: #38bdf8; }
+
+body.theme-water .suggest {
+  background: rgba(6, 36, 56, .92);
+  border-color: rgba(125, 211, 252, .3);
+  box-shadow: 0 24px 48px rgba(1, 12, 22, .6);
+  backdrop-filter: blur(10px);
+}
+body.theme-water .suggest .row { color: #e6f6ff; }
+body.theme-water .suggest .row:hover,
+body.theme-water .suggest .row.sel { background: rgba(56, 189, 248, .22); }
+body.theme-water .suggest .row .u { color: #8fb8d0; }

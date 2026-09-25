@@ -1,0 +1,981 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>New Tab</title>
+<style>
+  @font-face {
+    font-family: 'Silkscreen';
+    font-style: normal;
+    font-weight: 400;
+    src: url(data:font/ttf;base64,__FONT_REGULAR__) format('truetype');
+  }
+  @font-face {
+    font-family: 'Silkscreen';
+    font-style: normal;
+    font-weight: 700;
+    src: url(data:font/ttf;base64,__FONT_BOLD__) format('truetype');
+  }
+
+  :root {
+    --paper: #ffffff;
+    --paper-2: #f4f4f7;
+    --ink: #1d1d1f;
+    --ink-2: #6e6e73;
+    --ink-3: #b0b0b6;
+    --line: #e6e6eb;
+    --line-2: #d8d8de;
+    --accent: #a3e635;
+    --accent-ink: #16250a;
+    --accent-soft: #ebf9cc;
+    --sky: #37a6f0;
+    --pink: #ff4d79;
+    --hill: #dfead1;
+    --hill-2: #cfe0bb;
+    --sun: #ffd166;
+    --grid: rgba(0, 0, 0, .035);
+    --shadow: 0 12px 32px rgba(0, 0, 0, .10);
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, .06);
+
+    /* Motion: one squash-and-stretch language for the whole page. Scales stay
+       volume-preserving (x * y ~= 1) and releases overshoot before settling. */
+    --spring: cubic-bezier(.22, 1.35, .28, 1);
+    --soft: cubic-bezier(.32, .72, 0, 1);
+    --press: cubic-bezier(.34, 1.2, .64, 1);
+  }
+
+  body.dark {
+    --paper: #1c1c1e;
+    --paper-2: #2c2c2e;
+    --ink: #f2f2f7;
+    --ink-2: #a1a1a6;
+    --ink-3: #6e6e73;
+    --line: #38383c;
+    --line-2: #48484e;
+    --accent: #b4f03c;
+    --accent-ink: #16250a;
+    --accent-soft: #2e3b14;
+    --sky: #5cc0ff;
+    --pink: #ff6b91;
+    --hill: #2a2f24;
+    --hill-2: #232719;
+    --sun: #ffd166;
+    --grid: rgba(255, 255, 255, .05);
+    --shadow: 0 14px 36px rgba(0, 0, 0, .5);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, .35);
+  }
+
+  body.night {
+    --paper: #12102a;
+    --paper-2: #1b1840;
+    --ink: #f1eeff;
+    --ink-2: #a9a3d8;
+    --ink-3: #6e68a0;
+    --line: #2d2960;
+    --line-2: #3b3676;
+    --accent: #b4f03c;
+    --accent-soft: #23204d;
+    --hill: #1e1b46;
+    --hill-2: #171437;
+    --sun: #f2f0ff;
+    --grid: rgba(255, 255, 255, .045);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: background .35s ease, color .35s ease;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 12px),
+      repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 12px);
+    mask-image: radial-gradient(120% 70% at 50% 30%, #000 20%, transparent 75%);
+  }
+
+  .pixel-font { font-family: 'Silkscreen', 'Cascadia Mono', monospace; }
+
+  svg.art { shape-rendering: crispEdges; display: block; }
+
+  .stage {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 24px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .topbar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 2px 0;
+  }
+
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand .lockup { display: flex; flex-direction: column; gap: 2px; }
+  .brand .wordmark {
+    height: 28px; width: auto; display: block;
+  }
+  .brand .sub { font-size: 11px; color: var(--ink-3); letter-spacing: .04em; }
+
+  .chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    background: var(--paper-2);
+    color: var(--ink-2);
+    font-size: 11px;
+    letter-spacing: .02em;
+    border: 1px solid var(--line);
+    cursor: default;
+    user-select: none;
+  }
+  .chip b { color: var(--ink); font-weight: 600; }
+  .chip .dot { width: 6px; height: 6px; background: var(--accent); }
+  /* author CSS beats the UA rule for [hidden], so say it again explicitly */
+  .chip[hidden] { display: none; }
+
+  /* private windows get their own colour, not your accent */
+  .private-chip {
+    --accent: #8b6ef0;
+    color: #6746c9;
+    background: #efe9ff;
+    border-color: #d6c8ff;
+  }
+  body.dark .private-chip {
+    color: #c4b2ff;
+    background: #2b2542;
+    border-color: #413668;
+  }
+  body.private .sub { color: #8b6ef0; }
+
+  .hero { margin-top: clamp(28px, 9vh, 84px); text-align: center; }
+
+  .clock {
+    font-family: 'Silkscreen', monospace;
+    font-size: clamp(44px, 8vw, 76px);
+    line-height: 1;
+    letter-spacing: .02em;
+    transition: transform .2s var(--spring);
+  }
+  .clock.tick { transform: scale(1.018, 0.98); }
+
+  .clock .ampm {
+    font-size: .32em;
+    letter-spacing: .12em;
+    margin-left: .14em;
+    vertical-align: .78em;
+    color: var(--ink-2);
+  }
+
+  .date {
+    margin-top: 14px;
+    font-family: 'Silkscreen', monospace;
+    font-size: 10px;
+    letter-spacing: .34em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  .greet {
+    margin-top: 18px;
+    font-family: 'Silkscreen', monospace;
+    font-size: 11px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  .greet b { color: var(--accent); font-weight: 400; }
+
+  /* The whole search block is one layer, above the shortcut tiles: the suggestion list
+     opens downwards and has to cover them, or the tiles a person just clicked would sit on
+     top of their own search results. */
+  .search-wrap {
+    position: relative;
+    z-index: 20;
+    width: min(660px, 100%);
+    margin-top: clamp(24px, 5vh, 44px);
+  }
+
+  .field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 58px;
+    padding: 0 16px;
+    background: var(--line);
+    cursor: text;
+    transform-origin: 50% 50%;
+    transition: transform .34s var(--spring);
+  }
+  .search-wrap:focus-within .field { transform: scale(1.012, 0.988); }
+  .field .inner {
+    position: absolute; inset: 1px; z-index: 1;
+    background: var(--paper);
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 15px;
+    transition: background .2s ease;
+  }
+  .field:focus-within .inner { background: var(--paper); }
+  .field input {
+    flex: 1;
+    border: 0; outline: 0; background: transparent;
+    color: var(--ink);
+    font: 500 15.5px/1 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    letter-spacing: .01em;
+    caret-color: var(--ink);
+  }
+  .field input::placeholder { color: var(--ink-3); font-weight: 400; }
+  .keycap {
+    font-family: 'Silkscreen', monospace;
+    font-size: 9px;
+    color: var(--ink-2);
+    border: 1px solid var(--line-2);
+    padding: 4px 6px;
+    background: var(--paper-2);
+  }
+  .underline {
+    position: absolute; left: 0; bottom: -3px; height: 3px; width: 0;
+    background: var(--accent);
+    transition: width .22s steps(9, end);
+  }
+  .field:focus-within + .underline { width: 100%; }
+
+  .suggest {
+    position: absolute;
+    top: 68px; left: 0; right: 0;
+    background: var(--paper);
+    border: 1px solid var(--line-2);
+    box-shadow: var(--shadow);
+    padding: 5px;
+    z-index: 30;
+    display: none;
+  }
+  .suggest.open { display: block; animation: pop .26s var(--spring); }
+  .suggest .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    cursor: default;
+    color: var(--ink);
+    transform-origin: 50% 50%;
+    transition: transform .24s var(--spring), background .14s ease;
+  }
+  .suggest .row:hover { transform: scale(1.014, 0.984); }
+  .suggest .row:active { transform: scale(0.986, 0.96); transition-duration: .1s; }
+  .suggest .row .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+  .suggest .row .u { font-size: 11px; color: var(--ink-3); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .suggest .row.sel { background: var(--accent-soft); }
+  .suggest .row.sel .u { color: var(--ink-2); }
+
+  .tiles {
+    margin-top: clamp(26px, 5vh, 46px);
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px;
+    width: min(660px, 100%);
+    /* never underneath the scenery: the shortcuts are the part you came here to click */
+    position: relative;
+    z-index: 3;
+  }
+  @media (max-width: 720px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+  /* ---- short windows ---------------------------------------------------------
+     This page is a fixed-height composition: brand, clock, search, shortcuts, scenery.
+     A short window used to squeeze the middle blocks — they shrink, their contents do
+     not — so the shortcut tiles spilled out of their box and the scenery painted over
+     them ("the previous pages render underneath the rest"). Now the blocks keep their
+     shape, the scenery gives up room first, and the whole page scales with height as
+     well as width, so it fits without anything overlapping. */
+  .topbar, .hero, .search-wrap, .tiles { flex: 0 0 auto; }
+
+  @media (max-height: 740px) {
+    .hero { margin-top: clamp(12px, 4vh, 44px); }
+    .clock { font-size: clamp(32px, min(8vw, 10vh), 62px); }
+    .greet { margin-top: 12px; }
+    .search-wrap { margin-top: clamp(12px, 3vh, 26px); }
+    .tiles { margin-top: clamp(12px, 3vh, 28px); }
+    .tile { height: clamp(64px, 10vh, 86px); gap: 7px; }
+  }
+
+  @media (max-height: 600px) {
+    .date { margin-top: 9px; }
+    .tile { height: 62px; gap: 5px; }
+    .tile .label { font-size: 10px; }
+    .tip { bottom: 34px; }
+  }
+
+  /* Last resort on a really tiny window: let the page scroll instead of hiding content. */
+  @media (max-height: 460px) { body { overflow-y: auto; } }
+
+  .tile {
+    position: relative;
+    z-index: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 9px;
+    height: 96px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    cursor: pointer;
+    text-decoration: none;
+    clip-path: var(--poly, none);
+    transform-origin: 50% 96%;
+    transition: transform .34s var(--spring), border-color .16s ease;
+  }
+  .tile-wrap { position: relative; }
+  .tile-wrap::after {
+    content: "";
+    position: absolute; inset: 0; z-index: 0;
+    background: var(--line-2);
+    clip-path: var(--poly, none);
+    opacity: 0;
+    transition: opacity .16s ease, transform .16s cubic-bezier(.32,.72,0,1);
+  }
+  .tile-wrap:hover::after { opacity: 1; transform: translate(4px, 4px); }
+  /* Lifting the tile stretches it taller and thinner; pressing squashes it flat and wide. */
+  .tile:hover { transform: translateY(-3px) scale(0.974, 1.036); border-color: var(--line-2); }
+  .tile:active { transform: translateY(0) scale(1.05, 0.92); transition-duration: .09s; }
+  .tile .ico {
+    display: grid; place-items: center; height: 26px; color: var(--ink);
+    transform-origin: 50% 50%;
+    transition: transform .34s var(--spring);
+  }
+  .tile:hover .ico { transform: scale(1.1, 0.94); }
+  .tile:active .ico { transform: scale(0.94, 1.05); }
+  #searchIcon { color: var(--ink-2); display: inline-flex; }
+  .suggest .row .glyph { color: var(--ink-3); display: inline-flex; width: 16px; }
+  .tile .label {
+    font-size: 11.5px; color: var(--ink-2); max-width: 90%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tile .corner {
+    position: absolute; top: 0; right: 0; width: 6px; height: 6px;
+    background: var(--accent); opacity: 0; transition: opacity .14s ease;
+  }
+  .tile:hover .corner { opacity: 1; }
+
+  .scene {
+    position: relative;
+    flex: 0 1 auto;
+    width: 100%;
+    /* the scenery gives up room before anything you can click does */
+    height: clamp(96px, 20vh, 148px);
+    min-height: 84px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .scene .layer { position: absolute; inset: 0; transition: transform .5s cubic-bezier(.32,.72,0,1); }
+  .scene .sun { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); }
+  .scene .sun.spin { animation: spin8 9s steps(8, end) infinite; }
+  .scene .cloud { position: absolute; }
+  .scene .c1 { bottom: 92px; animation: drift 62s linear infinite; }
+  .scene .c2 { bottom: 116px; animation: drift 88s linear infinite; animation-delay: -30s; }
+  .scene .c3 { bottom: 76px; animation: drift 74s linear infinite; animation-delay: -52s; }
+  .scene .hills { position: absolute; left: 0; right: 0; bottom: 0; }
+  .scene .tip, .scene .foot { position: absolute; }
+  .stars { position: absolute; inset: 0; opacity: 0; transition: opacity .5s ease; }
+  body.night .stars { opacity: 1; }
+  .stars i { position: absolute; width: 3px; height: 3px; background: #fff; animation: twinkle 2.6s steps(2, end) infinite; }
+
+  .tip {
+    bottom: 44px; left: 0; right: 0;
+    text-align: center;
+    font-family: 'Silkscreen', monospace;
+    font-size: 9.5px;
+    letter-spacing: .16em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    transition: opacity .4s ease;
+  }
+
+  .foot {
+    bottom: 12px; left: 16px; right: 16px;
+    display: flex; justify-content: space-between;
+    font-size: 10.5px; color: var(--ink-3);
+    pointer-events: none;
+  }
+  .foot span { pointer-events: auto; }
+
+  .rise { opacity: 0; transform: translateY(12px) scale(0.94, 1.06); transform-origin: 50% 100%;
+          animation: rise .62s var(--spring) forwards; }
+  .d1 { animation-delay: .02s; } .d2 { animation-delay: .08s; } .d3 { animation-delay: .14s; }
+  .d4 { animation-delay: .2s; } .d5 { animation-delay: .26s; } .d6 { animation-delay: .32s; }
+
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @keyframes pop { from { opacity: 0; transform: translateY(-5px) scale(0.97, 1.05); } to { opacity: 1; transform: none; } }
+  /* Drifting clouds stretch as they cross, then relax — the scene breathes. */
+  @keyframes drift {
+    0%   { transform: translateX(-220px) scaleX(1); }
+    50%  { transform: translateX(45vw) scaleX(1.07); }
+    100% { transform: translateX(110vw) scaleX(1); }
+  }
+  @keyframes spin8 { to { transform: translateX(-50%) rotate(360deg); } }
+  @keyframes twinkle { 0%, 60% { opacity: .25; } 61%, 100% { opacity: 1; } }
+  /* The sun squashes as it turns, like a soft body on a spit. */
+  @keyframes beat {
+    0%, 100% { transform: scale(1, 1); }
+    45%      { transform: scale(1.07, 0.93); }
+    70%      { transform: scale(0.97, 1.03); }
+  }
+  .scene .sun svg { animation: beat 2.6s var(--soft) infinite; transform-origin: 50% 50%; }
+  .brand .wordmark { transition: transform .34s var(--spring); }
+  .brand:hover .wordmark { transform: scale(1.03, 0.97); }
+  .chip { transition: transform .3s var(--spring); }
+  .chip:hover { transform: scale(1.03, 0.97); }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001s !important;
+      transition-duration: .001s !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <script>
+    // No flash of the wrong theme: the host sets the engine's preferred color scheme,
+    // so the media query already knows the answer before first paint.
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.body.classList.add('dark');
+    }
+  </script>
+  <main class="stage">
+    <header class="topbar rise d1">
+      <div class="brand">
+        <div class="lockup">
+          <img class="wordmark" src="wordmark.png" alt="Nibble" />
+          <div class="sub">a tasty little browser</div>
+        </div>
+      </div>
+      <div class="chip" id="stats" data-pixel="3" title="Requests blocked by the built-in tracker shield">
+        <span class="dot"></span>
+        <span id="statsText">shield warming up</span>
+      </div>
+      <!-- only shown in a private window -->
+      <div class="chip private-chip" id="privateChip" data-pixel="3" hidden
+           title="This window keeps nothing: no history, no cookies, nothing on disk">
+        <span class="dot"></span>
+        <span>private · nothing saved</span>
+      </div>
+    </header>
+
+    <section class="hero rise d2">
+      <div class="clock" id="clock"><span id="clockTime">--:--</span><span class="ampm" id="ampm"></span></div>
+      <div class="greet" id="greet">&nbsp;</div>
+      <div class="date" id="date">&nbsp;</div>
+    </section>
+
+    <section class="search-wrap rise d3">
+      <div class="field" id="field" data-pixel="4">
+        <div class="inner">
+          <span id="searchIcon"></span>
+          <input id="q" type="text" autocomplete="off" spellcheck="false"
+                 placeholder="Search the web or type an address" aria-label="Search" />
+          <span class="keycap">/</span>
+        </div>
+      </div>
+      <div class="underline"></div>
+      <div class="suggest" id="suggest"></div>
+    </section>
+
+    <section class="tiles rise d4" id="tiles"></section>
+  </main>
+
+  <div class="scene" aria-hidden="true">
+    <div class="stars" id="stars"></div>
+    <div class="layer" id="layerFar">
+      <div class="cloud c1" id="cloud1"></div>
+      <div class="cloud c2" id="cloud2"></div>
+      <div class="cloud c3" id="cloud3"></div>
+      <div class="sun spin" id="sun"></div>
+    </div>
+    <div class="layer" id="layerNear">
+      <div class="hills" id="hills"></div>
+    </div>
+    <div class="tip pixel-font" id="tip">TIP · PRESS / TO SEARCH · CTRL+T FOR A NEW TAB</div>
+    <div class="foot" id="foot">
+      <span id="footLeft">Nibble</span>
+      <span id="footRight"></span>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+  const bridge = window.chrome && window.chrome.webview ? window.chrome.webview : null;
+  const send = (msg) => bridge && bridge.postMessage(msg);
+
+  /* ---- pixel scenery (the landscape band only) ---- */
+  const ART = {
+    sparkle: "...#...\n...#...\n...#...\n#######\n...#...\n...#...\n...#...",
+    cloud: "....####....\n..########..\n.##########.\n############"
+  };
+
+  /* ---- smooth open-source icons: Lucide (ISC), same set the shell uses ---- */
+  const ICONS = {
+    search: "m21 21-4.34-4.34 M3 11a8 8 0 1 0 16 0a8 8 0 1 0 -16 0",
+    globe: "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0 M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20 M2 12h20",
+    play: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",
+    code: "m16 18 6-6-6-6 M8 6l-6 6 6 6",
+    bolt: "M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z",
+    chat: "M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719",
+    music: "M9 18V5l12-2v13 M3 18a3 3 0 1 0 6 0a3 3 0 1 0 -6 0 M15 16a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
+    pin: "M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0 M9 10a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
+    star: "M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z",
+    sparkle: "M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z M20 2v4 M22 4h-4 M2 20a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"
+  };
+
+  /** Inline SVG for one icon, matching the shell's 2px-on-24px stroke rhythm. */
+  function icon(name, size, color) {
+    const d = ICONS[name] || ICONS.globe;
+    const stroke = ((size / 24) * 2).toFixed(2);
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" ` +
+      `stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+  }
+
+  function art(name, pixel, color) {
+    const rows = (ART[name] || ART.globe).split("\n");
+    const w = rows.reduce((m, r) => Math.max(m, r.length), 0);
+    const h = rows.length;
+    const parts = [`<svg class="art" width="${w * pixel}" height="${h * pixel}" viewBox="0 0 ${w * pixel} ${h * pixel}" fill="${color}">`];
+    rows.forEach((row, y) => {
+      [...row].forEach((ch, x) => {
+        if (ch !== "#") return;
+        parts.push(`<rect x="${x * pixel}" y="${y * pixel}" width="${pixel}" height="${pixel}"/>`);
+      });
+    });
+    parts.push("</svg>");
+    return parts.join("");
+  }
+
+  function accentColor() {
+    return getComputedStyle(document.body).getPropertyValue("--accent").trim() || "#a3e635";
+  }
+
+  /* ---- stair-stepped "pixel rounded" corners, same math as the native shell ---- */
+  function stairPoly(w, h, step, inset) {
+    const n = 3, c = n * step, i = inset;
+    const x0 = i, y0 = i, x1 = w - i, y1 = h - i;
+    const pts = [];
+    const add = (x, y) => pts.push(Math.round(x) + "px " + Math.round(y) + "px");
+    add(x0 + c, y0); add(x1 - c, y0);
+    for (let k = 1; k <= n; k++) add(x1 - c + k * step, y0 + k * step);
+    add(x1, y1 - c);
+    for (let k = 1; k <= n; k++) add(x1 - k * step, y1 - c + k * step);
+    add(x0 + c, y1);
+    for (let k = 1; k <= n; k++) add(x0 + c - k * step, y1 - k * step);
+    add(x0, y0 + c);
+    for (let k = 1; k <= n; k++) add(x0 + k * step, y0 + c - k * step);
+    return "polygon(" + pts.join(",") + ")";
+  }
+
+  function pixelate() {
+    document.querySelectorAll("[data-pixel], [data-pixel-shadow]").forEach((el) => {
+      const step = parseInt(el.dataset.pixel || el.dataset.pixelShadow, 10) || 3;
+      const w = el.offsetWidth, h = el.offsetHeight;
+      if (w < step * 4 || h < step * 3) return;
+      const poly = stairPoly(w, h, step, 0);
+      el.style.setProperty("--poly", poly);
+      if (el.dataset.pixel) el.style.clipPath = poly;
+      el.querySelectorAll("[data-pixel-inner]").forEach((inner) => {
+        const iw = inner.offsetWidth, ih = inner.offsetHeight;
+        inner.style.clipPath = stairPoly(iw, ih, step, 0);
+      });
+    });
+  }
+
+  /* ---- header, clock, decorations ---- */
+  const clockTime = document.getElementById("clockTime");
+  const ampm = document.getElementById("ampm");
+  let clock24 = true;   // the shell says otherwise on init if you prefer 12-hour
+  let privateMode = false;
+  document.querySelector("#searchIcon").innerHTML = icon("search", 19, "currentColor");
+  sun.innerHTML = art("sparkle", 4, "var(--sun)");
+  cloud1.innerHTML = art("cloud", 4, "var(--hill-2)");
+  cloud2.innerHTML = art("cloud", 3, "var(--hill-2)");
+  cloud3.innerHTML = art("cloud", 2, "var(--hill)");
+  hills.innerHTML = hillsSvg();
+  buildStars();
+
+  function hillsSvg() {
+    // --hill is set by whichever palette is on (light, dark, or the night easter egg), so
+    // the horizon follows the shell's theme instead of staying daylight-green in dark mode.
+    return `<svg width="100%" height="80" viewBox="0 0 800 80" preserveAspectRatio="none" fill="var(--hill)">` +
+      `<polygon points="0,80 0,52 24,52 24,44 48,44 48,36 72,36 72,28 96,28 96,36 120,36 120,44 144,44 144,52 168,52 168,60 192,60 192,52 216,52 216,44 240,44 240,36 264,36 264,44 288,44 288,52 312,52 312,60 336,60 336,68 360,68 360,76 384,76 384,68 408,68 408,60 432,60 432,52 456,52 456,44 480,44 480,36 504,36 504,28 528,28 528,36 552,36 552,44 576,44 576,52 600,52 600,60 624,60 624,52 648,52 648,44 672,44 672,36 696,36 696,44 720,44 720,52 744,52 744,60 768,60 768,52 800,52 800,80"/>` +
+      `<polygon points="0,80 0,64 32,64 32,58 64,58 64,52 96,52 96,58 128,58 128,64 160,64 160,70 192,70 192,64 224,64 224,58 256,58 256,52 288,52 288,58 320,58 320,64 352,64 352,70 384,70 384,64 416,64 416,58 448,58 448,64 480,64 480,70 512,70 512,64 544,64 544,58 576,58 576,64 608,64 608,70 640,70 640,64 672,64 672,58 704,58 704,64 736,64 736,70 768,70 768,76 800,76 800,80" opacity=".8"/>` +
+      `</svg>`;
+  }
+
+  function buildStars() {
+    let html = "";
+    for (let i = 0; i < 42; i++) {
+      const x = Math.random() * 100, y = Math.random() * 62, d = (Math.random() * 2.6).toFixed(2);
+      html += `<i style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`;
+    }
+    stars.innerHTML = html;
+  }
+
+  var userName = "";
+
+  function renderGreeting() {
+    const hour = new Date().getHours();
+    const part = hour < 12 ? "GOOD MORNING" : hour < 18 ? "GOOD AFTERNOON" : "GOOD EVENING";
+    greet.innerHTML = userName ? part + ", <b>" + escapeHtml(userName.toUpperCase()) + "</b>" : part;
+  }
+
+  function applyAccent(accent, soft, ink) {
+    const root = document.documentElement.style;
+    if (accent) root.setProperty('--accent', accent);
+    if (soft) root.setProperty('--accent-soft', soft);
+    if (ink) root.setProperty('--accent-ink', ink);
+  }
+
+  function tickClock() {
+    const now = new Date();
+    const h24 = now.getHours(), m = now.getMinutes();
+    const h = clock24 ? h24 : (h24 % 12 || 12);
+    // padded either way, so the pixel clock never changes width as time passes
+    const text = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+    const suffix = clock24 ? "" : (h24 < 12 ? "AM" : "PM");
+    if (clockTime.textContent !== text || ampm.textContent !== suffix) {
+      clockTime.textContent = text;
+      ampm.textContent = suffix;
+      clock.classList.add("tick");
+      setTimeout(() => clock.classList.remove("tick"), 180);
+    }
+    date.textContent = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+    renderGreeting();
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  const TIPS = [
+    "TIP · CTRL+T OPENS A FRESH TAB",
+    "TIP · CTRL+K FOR THE COMMAND PALETTE",
+    "TIP · MIDDLE-CLICK A TAB TO CLOSE IT",
+    "TIP · CTRL+SHIFT+T REOPENS A CLOSED TAB",
+    "TIP · IDLE TABS NAP TO SAVE MEMORY",
+    "TIP · CLICK THE SUN. TRUST ME."
+  ];
+  let tipIndex = 0;
+  setInterval(() => {
+    tip.style.opacity = "0";
+    setTimeout(() => {
+      tipIndex = (tipIndex + 1) % TIPS.length;
+      tip.textContent = TIPS[tipIndex];
+      tip.style.opacity = "1";
+    }, 400);
+  }, 7000);
+
+  /* ---- easter egg: pixel night ---- */
+  let sunClicks = 0;
+  try {
+    document.body.classList.toggle("night", localStorage.getItem("nibble.night") === "1");
+  } catch (e) { /* storage can be unavailable on some origins */ }
+  sun.style.pointerEvents = "auto";
+  sun.style.cursor = "pointer";
+  sun.addEventListener("click", () => {
+    sunClicks++;
+    if (sunClicks < 5) return;
+    sunClicks = 0;
+    const night = !document.body.classList.contains("night");
+    document.body.classList.toggle("night", night);
+    try { localStorage.setItem("nibble.night", night ? "1" : "0"); } catch (e) { /* ignore */ }
+    hills.innerHTML = hillsSvg();
+    tip.textContent = night ? "TIP · NIGHT OWL MODE UNLOCKED" : "TIP · GOOD MORNING";
+    send({ type: "night", night });
+  });
+
+  /* ---- parallax ---- */
+  window.addEventListener("mousemove", (e) => {
+    const dx = (e.clientX / window.innerWidth - .5) * 2;
+    const dy = (e.clientY / window.innerHeight - .5) * 2;
+    layerFar.style.transform = `translate(${dx * -5}px, ${dy * -3}px)`;
+    layerNear.style.transform = `translate(${dx * 9}px, 0)`;
+  });
+
+  /* ---- tiles ---- */
+  // Pinned by hand: these lead the row in every window, whatever your history says, and
+  // they are the only tiles a private window shows (they say nothing about where you have
+  // been). Keep this list short - it comes out of the six the row has room for.
+  const PINNED = [
+    { url: "https://www.deckrise.net/", title: "DECKRISE", icon: "globe" }
+  ];
+
+  const DEFAULTS = [
+    { url: "https://en.wikipedia.org", title: "Wikipedia", icon: "globe" },
+    { url: "https://news.ycombinator.com", title: "Hacker News", icon: "bolt" },
+    { url: "https://github.com", title: "GitHub", icon: "code" },
+    { url: "https://www.youtube.com", title: "YouTube", icon: "play" },
+    { url: "https://open.spotify.com", title: "Spotify", icon: "music" },
+    { url: "https://www.reddit.com", title: "Reddit", icon: "chat" }
+  ];
+
+  function renderTiles(items, withDefaults = true) {
+    // Pinned shortcuts first, then what you actually visit, then the built-in list, so the
+    // row always looks and feels full.
+    const host = (u) => String(u || "").replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0].toLowerCase();
+    const list = [];
+    const seen = new Set();
+    for (const pinned of PINNED) {
+      const key = host(pinned.url);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      list.push(pinned);
+    }
+    for (const item of (items && items.length ? items : [])) {
+      if (list.length >= 6) break;
+      const key = host(item.url);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      list.push(item);
+    }
+    for (const d of (withDefaults ? DEFAULTS : [])) {
+      if (list.length >= 6) break;
+      if (seen.has(host(d.url))) continue;
+      seen.add(host(d.url));
+      list.push(d);
+    }
+    tiles.innerHTML = "";
+    list.forEach((item, i) => {
+      const wrap = document.createElement("div");
+      wrap.className = "tile-wrap rise d" + (i + 1);
+      wrap.dataset.pixelShadow = "3";
+      const el = document.createElement("a");
+      el.className = "tile";
+      el.href = item.url;
+      el.rel = "noreferrer";
+      el.dataset.icon = item.icon || "globe";
+      el.innerHTML =
+        `<div class="corner"></div>` +
+        `<div class="ico">${icon(item.icon || "globe", 24, "currentColor")}</div>` +
+        `<div class="label">${escapeHtml(item.title || item.url)}</div>`;
+      el.addEventListener("click", (e) => {
+        e.preventDefault();
+        send({ type: "open", url: item.url });
+      });
+      wrap.appendChild(el);
+      tiles.appendChild(wrap);
+    });
+    requestAnimationFrame(pixelate);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  /* ---- search + suggestions ---- */
+  let suggestions = [], sel = -1, tiles_done = 0;
+
+  function renderSuggestions(items) {
+    suggestions = items || [];
+    sel = -1;
+    if (!suggestions.length) { suggest.classList.remove("open"); return; }
+    suggest.innerHTML = suggestions.map((s, i) =>
+      `<div class="row" data-i="${i}">
+         <span class="glyph">${icon(s.kind === "search" ? "search" : "globe", 16, "currentColor")}</span>
+         <span class="t">${escapeHtml(s.title || s.url)}</span>
+         <span class="u">${escapeHtml(s.subtitle || "")}</span>
+       </div>`).join("");
+    suggest.classList.add("open");
+    [...suggest.querySelectorAll(".row")].forEach((row) => {
+      row.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        choose(parseInt(row.dataset.i, 10));
+      });
+    });
+  }
+
+  function choose(i) {
+    const item = suggestions[i];
+    if (!item) { submit(); return; }
+    if (item.kind === "search") send({ type: "search", text: q.value });
+    else send({ type: "open", url: item.url });
+  }
+
+  function submit() {
+    const text = q.value.trim();
+    if (!text) return;
+    send({ type: "navigate", text });
+    q.value = "";
+    suggest.classList.remove("open");
+  }
+
+  function highlight() {
+    [...suggest.querySelectorAll(".row")].forEach((row, i) => row.classList.toggle("sel", i === sel));
+  }
+
+  field.addEventListener("click", () => q.focus());
+  q.addEventListener("input", () => send({ type: "query", text: q.value }));
+  q.addEventListener("focus", () => send({ type: "query", text: q.value }));
+  q.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (sel >= 0) choose(sel); else submit();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      sel = Math.min(sel + 1, suggestions.length - 1); highlight();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      sel = Math.max(sel - 1, -1); highlight();
+    } else if (e.key === "Escape") {
+      q.blur(); suggest.classList.remove("open");
+    }
+  });
+  q.addEventListener("blur", () => setTimeout(() => suggest.classList.remove("open"), 120));
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+    if (e.key === "Escape" && document.activeElement !== q) send({ type: "escape" });
+  });
+
+  /* ---- stats ---- */
+  let statTarget = 0, statSaved = 0;
+  function animateStats() {
+    const start = performance.now();
+    const dur = 900;
+    function frame(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const blocked = Math.round(statTarget * eased);
+      statsText.innerHTML = `<b>${blocked.toLocaleString()}</b> blocked · saved ${statSaved}`;
+      if (t < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---- host messages ---- */
+  // A theme is a folder next to this page: theme.css recolours anything it likes and
+  // theme.js may draw on the page (the Deep Water theme runs its wave simulation there).
+  // Both are swapped live, and the outgoing theme is asked to clean up first.
+  function applyTheme(theme) {
+    for (const el of document.querySelectorAll("link[data-theme], script[data-theme]")) el.remove();
+    for (const cls of Array.from(document.body.classList)) {
+      if (cls.indexOf("theme-") === 0) document.body.classList.remove(cls);
+    }
+    if (window.NibblePageTheme && typeof window.NibblePageTheme.unmount === "function") {
+      try { window.NibblePageTheme.unmount(); } catch (e) { /* the old theme may be half gone */ }
+      window.NibblePageTheme = null;
+    }
+
+    const id = theme && theme.id && theme.id !== "default" ? String(theme.id) : "";
+    if (!id) return;
+
+    document.body.classList.add("theme-" + id);
+
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "themes/" + id + "/" + (theme.css || "theme.css");
+    link.dataset.theme = id;
+    document.head.appendChild(link);
+
+    // What a theme's script is handed: the parts of the page it may want to touch.
+    window.__nibbleThemeApi = {
+      body: document.body,
+      stage: document.querySelector(".stage"),
+      tiles: document.getElementById("tiles"),
+      clock: document.getElementById("clock"),
+      accent: accentColor(),
+      send
+    };
+
+    const script = document.createElement("script");
+    script.src = "themes/" + id + "/" + (theme.js || "theme.js");
+    script.dataset.theme = id;
+    document.body.appendChild(script);
+  }
+
+  // A private window says so, drops the quick tiles (they come from your history) and
+  // keeps one honest line about what private does and does not hide.
+  function setPrivate(on) {
+    document.body.classList.toggle("private", on);
+    privateChip.hidden = !on;
+    privateMode = on;
+    if (!on) return;
+
+    // Only the hand-pinned shortcuts: a private window shows nothing of yours, and no
+    // filler either - just the one or two entries that are in the page by hand.
+    renderTiles([], false);
+    tipIndex = 0;
+    TIPS.length = 0;
+    TIPS.push("PRIVATE · NOTHING IS WRITTEN TO DISK · YOUR NETWORK CAN STILL SEE WHERE YOU GO");
+    tip.textContent = TIPS[0];
+  }
+
+  if (bridge) {
+    bridge.addEventListener("message", (e) => {
+      const m = e.data || {};
+      if (m.type === "init") {
+        document.body.classList.toggle("dark", !!m.dark);
+        setPrivate(!!m.private);
+        userName = m.name || "";
+        applyAccent(m.accent, m.accentSoft, m.accentInk);
+        applyTheme(m.theme);
+        statTarget = m.blocked || 0;
+        statSaved = m.savedText || "0 B";
+        if (typeof m.clock24 === "boolean") { clock24 = m.clock24; tickClock(); }
+        animateStats();
+        renderTiles(privateMode ? [] : m.tiles, !privateMode);
+        footLeft.textContent = "Nibble " + (m.version || "1.0") + " · engine WebView2";
+        footRight.textContent = (m.engine ? "search: " + m.engine : "") + (m.launches ? " · launch #" + m.launches : "");
+        refreshArtColors();
+      } else if (m.type === "theme") {
+        document.body.classList.toggle("dark", !!m.dark);
+        userName = m.name || "";
+        applyAccent(m.accent, m.accentSoft, m.accentInk);
+        applyTheme(m.theme);
+        if (typeof m.clock24 === "boolean") { clock24 = m.clock24; tickClock(); }
+        renderGreeting();
+        refreshArtColors();
+      } else if (m.type === "suggestions") {
+        renderSuggestions(m.items);
+      } else if (m.type === "focus") {
+        q.focus(); q.select();
+      }
+    });
+    send({ type: "ready" });
+  } else {
+    renderTiles(DEFAULTS);
+  }
+
+  function refreshArtColors() {
+    document.querySelector("#searchIcon").innerHTML = icon("search", 19, "currentColor");
+    [...tiles.querySelectorAll(".tile")].forEach((tile) => {
+      const holder = tile.querySelector(".ico");
+      if (holder) holder.innerHTML = icon(tile.dataset.icon || "globe", 24, "currentColor");
+    });
+    pixelate();
+  }
+
+  const ro = new ResizeObserver(() => pixelate());
+  ro.observe(document.body);
+  window.addEventListener("resize", pixelate);
+  requestAnimationFrame(pixelate);
+  setTimeout(pixelate, 260);
+})();
+</script>
+</body>
+</html>

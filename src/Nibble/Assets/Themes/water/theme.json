@@ -1,0 +1,33 @@
+{
+  "id": "water",
+  "name": "Deep Water",
+  "author": "Nibble",
+  "tagline": "A real wave simulation under the search bar. Move the mouse to stir it.",
+  "base": "dark",
+  "accent": "#38BDF8",
+  "colors": {
+    "WindowBg": "#04121F",
+    "ChromeBg": "#062033",
+    "SubBg": "#0A2A42",
+    "CardBg": "#0A2A42",
+    "Hover": "#0F3A56",
+    "Active": "#134866",
+    "Hairline": "#123A56",
+    "HairlineStrong": "#1B5578",
+    "Ink": "#E6F6FF",
+    "Ink2": "#A8CFE6",
+    "Ink3": "#6E97B0",
+    "Track": "#123A56",
+    "Scroll": "#1B5578",
+    "ButtonStroke": "#1B5578",
+    "ButtonStrokeThickness": 1
+  },
+  "page": { "css": "theme.css", "js": "theme.js" },
+  "preview": {
+    "sky": "#062A44",
+    "ground": "#0A5C8A",
+    "button": "#0B3A5B",
+    "text": "#E6F6FF",
+    "accent": "#38BDF8"
+  }
+}

@@ -1,0 +1,76 @@
+<Window x:Class="Nibble.ThemesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Nibble.Controls"
+        Title="Theme shop" Width="900" Height="660" MinWidth="720" MinHeight="480"
+        WindowStyle="None" Background="{DynamicResource WindowBg}"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        WindowStartupLocation="CenterOwner" Icon="/Assets/nibble.png"
+        FontFamily="{StaticResource UIFont}">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0"
+                      CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Border BorderBrush="{DynamicResource HairlineStrong}" BorderThickness="1"
+            Background="{DynamicResource WindowBg}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="58" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="72" />
+            </Grid.RowDefinitions>
+
+            <!-- header -->
+            <Grid x:Name="HeaderRow" Grid.Row="0" Background="Transparent"
+                  MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
+                    <c:VectorIcon Data="{x:Static c:Icons.Palette}" Size="20"
+                                  Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+                    <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="T H E M E   S H O P" FontFamily="{StaticResource PixelFont}"
+                                   FontSize="10" Foreground="{DynamicResource Ink}" />
+                        <TextBlock x:Name="Subtitle" Text="Pick a look — it applies to the whole browser."
+                                   FontSize="11.5" Margin="0,3,0,0" Foreground="{DynamicResource Ink3}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Button x:Name="CloseButton" Style="{StaticResource GhostButton}" Content="Done"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0"
+                        Height="32" MinWidth="88" Click="Close_Click" />
+            </Grid>
+
+            <!-- the cards -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Padding="18,0,18,0">
+                <StackPanel>
+                    <TextBlock x:Name="BuiltInLabel" Text="SHIPPED WITH NIBBLE"
+                               FontFamily="{StaticResource PixelFont}" FontSize="9"
+                               Foreground="{DynamicResource Ink3}" Margin="2,4,0,10" />
+                    <WrapPanel x:Name="BuiltInList" />
+                    <TextBlock x:Name="InstalledLabel" Text="YOUR THEMES" Visibility="Collapsed"
+                               FontFamily="{StaticResource PixelFont}" FontSize="9"
+                               Foreground="{DynamicResource Ink3}" Margin="2,16,0,10" />
+                    <WrapPanel x:Name="InstalledList" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- footer -->
+            <Grid Grid.Row="2">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Margin="18,0,0,0">
+                    <Button x:Name="ImportButton" Style="{StaticResource GhostButton}" Content="Install from file…"
+                            Height="34" MinWidth="150" Click="Import_Click" />
+                    <Button x:Name="ExportButton" Style="{StaticResource GhostButton}" Content="Export current…"
+                            Height="34" MinWidth="140" Margin="10,0,0,0" Click="Export_Click" />
+                    <Button x:Name="FolderButton" Style="{StaticResource GhostButton}" Content="Open themes folder"
+                            Height="34" MinWidth="150" Margin="10,0,0,0" Click="Folder_Click" />
+                </StackPanel>
+                <TextBlock x:Name="StatusText" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Margin="0,0,18,0" FontSize="11.5" Foreground="{DynamicResource Ink3}"
+                           Text="A theme is a folder with a theme.json — share one as a single file." />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

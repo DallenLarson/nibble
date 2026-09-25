@@ -1,0 +1,51 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Inno Setup is only needed to turn a tag into a release with an installer; on a
+      # normal push package.ps1 builds the browser and says the installer was skipped.
+      - name: Inno Setup (releases only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: choco install innosetup --no-progress -y
+
+      - name: Build, package and check
+        shell: pwsh
+        run: |
+          ./tools/package.ps1
+          ./tools/verify.ps1
+
+      - name: Upload the browser
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nibble
+          path: dist/**
+
+      # Tagging v1.0.0 turns the same build into a release, with the installer if Inno
+      # Setup was installed in the step above.
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Nibble.exe
+            dist/Nibble-*-Setup.exe
+          generate_release_notes: true

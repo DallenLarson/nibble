@@ -1,0 +1,191 @@
+/* =====================================================================
+   Nibble · "Grass Block" — a Minecraft-flavoured theme
+
+   The look is rebuilt from scratch in CSS: flat stone panels with chunky 2 px
+   bevels, a block-built horizon, and text with the hard 2 px drop shadow the game
+   uses. The textures in blocks/ are drawn by work/tools/Textures, not taken from
+   the game, and the type is Monocraft (SIL OFL), so nothing here is Mojang's art.
+   ===================================================================== */
+
+@font-face {
+  font-family: 'Monocraft';
+  src: url('Monocraft.ttf') format('truetype');
+  font-display: swap;
+}
+
+body.theme-minecraft {
+  --paper: #7FA9F0;
+  --paper-2: #C6C6C6;
+  --ink: #ffffff;
+  --ink-2: #e8e8e8;
+  --ink-3: #c4c4c4;
+  --line: #2b2b2b;
+  --line-2: #1e1e1e;
+  --accent: #6aa84f;
+  --accent-ink: #10210a;
+  --accent-soft: #4e7c39;
+  --sky: #78a7ff;
+  --hill: #ffffff;
+  --hill-2: #ffffff;
+  --sun: #fff6b0;
+  --grid: transparent;
+  --shadow: 0 4px 0 rgba(0, 0, 0, .35);
+  --shadow-sm: 0 2px 0 rgba(0, 0, 0, .3);
+  font-family: 'Monocraft', 'Silkscreen', monospace;
+  background: linear-gradient(#4d80d8 0%, #79a6f0 45%, #b3d2ff 100%);
+}
+
+body.theme-minecraft::before { opacity: 0; }
+
+/* ---- sky furniture: a square sun and white block clouds ---- */
+body.theme-minecraft .sun svg { display: none; }
+body.theme-minecraft .sun {
+  width: 52px;
+  height: 52px;
+  background: var(--sun);
+  box-shadow: 0 0 0 6px rgba(255, 246, 176, .25), 0 0 64px 18px rgba(255, 214, 102, .45);
+}
+/* the page spins its sun; a Minecraft sun is just a square */
+body.theme-minecraft .sun,
+body.theme-minecraft .sun.spin {
+  animation: none;
+  transform: translateX(-50%) rotate(0deg);
+  bottom: 128px;   /* clear of the tip line along the bottom */
+}
+body.theme-minecraft .cloud svg { display: none; }
+body.theme-minecraft .cloud {
+  width: 118px;
+  height: 26px;
+  background: #ffffff;
+  box-shadow: 22px -14px 0 0 #ffffff, 62px 10px 0 0 #ffffff, 104px -6px 0 0 #ffffff;
+  opacity: .92;
+}
+
+/* ---- the horizon: a row of grass blocks ---- */
+body.theme-minecraft .hills { display: none; }
+body.theme-minecraft .scene::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  background-image: url('blocks/grass_side.png');
+  background-size: 48px 48px;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+  box-shadow: 0 -2px 0 rgba(0, 0, 0, .18);
+}
+/* floating blocks, added by theme.js */
+body.theme-minecraft .mc-block {
+  position: absolute;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, .22), inset 3px 3px 0 rgba(255, 255, 255, .18);
+  animation: mc-bob 6s ease-in-out infinite;
+}
+
+/* ---- the clock and copy: white, with the game's hard shadow ---- */
+body.theme-minecraft .clock,
+body.theme-minecraft .greet,
+body.theme-minecraft .date,
+body.theme-minecraft .tip,
+body.theme-minecraft .foot {
+  font-family: 'Monocraft', monospace;
+  color: #ffffff;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, .55);
+  letter-spacing: .01em;
+}
+/* keep the tip clear of the grass blocks */
+body.theme-minecraft .tip { bottom: 58px; }
+body.theme-minecraft .foot { text-shadow: 2px 2px 0 rgba(0, 0, 0, .6); }
+body.theme-minecraft .clock .ampm { color: #ffffff; }
+body.theme-minecraft .greet b { color: #fff6b0; text-shadow: 3px 3px 0 rgba(0, 0, 0, .55); }
+body.theme-minecraft .wordmark { filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, .45)); }
+body.theme-minecraft .sub { color: #ffffff; text-shadow: 2px 2px 0 rgba(0, 0, 0, .5); }
+
+/* ---- the search field: a black slot with a sunken lip ---- */
+body.theme-minecraft .field {
+  background: #000000;
+  border: 2px solid #1e1e1e;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .16), 2px 2px 0 rgba(0, 0, 0, .28);
+}
+body.theme-minecraft .field .inner { padding-left: 2px; }
+body.theme-minecraft .field input {
+  color: #e8e8e8;
+  font-family: 'Monocraft', monospace;
+  font-size: 14px;
+}
+body.theme-minecraft .field input::placeholder { color: #8f8f8f; }
+body.theme-minecraft #searchIcon { color: #a8a8a8; }
+body.theme-minecraft .underline { display: none; }
+body.theme-minecraft .keycap {
+  background: #c6c6c6;
+  border: 2px solid #1e1e1e;
+  color: #3a3a3a;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .8), inset -2px -2px 0 rgba(90, 90, 90, .8);
+}
+
+/* ---- shortcuts as stone buttons ---- */
+body.theme-minecraft .tiles { gap: 10px; }
+body.theme-minecraft .tile-wrap::after { display: none; }
+body.theme-minecraft .tile {
+  height: 110px;
+  gap: 7px;
+  background: #c6c6c6;
+  border: 2px solid #1e1e1e;
+  clip-path: none;
+  border-radius: 0;
+  color: #3a3a3a;
+  font-family: 'Monocraft', monospace;
+  letter-spacing: 0;
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, .4);
+  box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .9), inset -3px -3px 0 rgba(90, 90, 90, .9);
+}
+body.theme-minecraft .tile .ico { color: #3a3a3a; }
+body.theme-minecraft .tile .label {
+  font-size: 10.5px;
+  /* a fixed line box: Monocraft's own metrics are much taller than its glyphs, which
+     otherwise pushes the label down through the bottom of the button */
+  line-height: 15px;
+  letter-spacing: 0;
+  max-height: 30px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: ellipsis;
+}
+body.theme-minecraft .tile .corner { display: none; }
+body.theme-minecraft .tile:hover { background: #d8d8d8; transform: none; }
+body.theme-minecraft .tile:active {
+  background: #a8a8a8;
+  box-shadow: inset -3px -3px 0 rgba(255, 255, 255, .7), inset 3px 3px 0 rgba(70, 70, 70, .95);
+}
+
+/* ---- chips and the suggestion list ---- */
+body.theme-minecraft .chip,
+body.theme-minecraft .private-chip {
+  background: #c6c6c6;
+  border: 2px solid #1e1e1e;
+  color: #3a3a3a;
+  font-size: 10.5px;
+  letter-spacing: 0;
+  padding: 5px 8px;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .85), inset -2px -2px 0 rgba(90, 90, 90, .85);
+}
+body.theme-minecraft .chip .dot { background: #6aa84f; }
+body.theme-minecraft .chip b { color: #1e1e1e; }
+body.theme-minecraft .suggest {
+  background: #c6c6c6;
+  border: 2px solid #1e1e1e;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .35);
+}
+body.theme-minecraft .suggest .row { color: #2b2b2b; font-family: 'Monocraft', monospace; }
+body.theme-minecraft .suggest .row:hover,
+body.theme-minecraft .suggest .row.sel { background: #a8d08d; }
+body.theme-minecraft .suggest .row .u { color: #5a5a5a; }
+
+@keyframes mc-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}

@@ -1,0 +1,25 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{cs,xaml}]
+indent_size = 4
+
+[*.{json,html,css,js,yml,yaml,md}]
+indent_size = 2
+
+[*.cs]
+# the codebase talks to Windows and the engine by name; keep those names intact
+dotnet_sort_system_directives_first = true
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_var_when_type_is_apparent = true:suggestion
+dotnet_style_qualification_for_field = false:suggestion
+
+[*.md]
+trim_trailing_whitespace = false

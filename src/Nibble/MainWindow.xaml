@@ -1,0 +1,442 @@
+<Window x:Class="Nibble.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Nibble.Controls"
+        Title="Nibble" Width="1220" Height="820" MinWidth="620" MinHeight="460"
+        WindowStyle="None" Background="{DynamicResource WindowBg}"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        WindowStartupLocation="CenterScreen" Icon="/Assets/nibble.png"
+        FontFamily="{StaticResource UIFont}">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0"
+                      CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Grid x:Name="Shell">
+        <Grid.RowDefinitions>
+            <!-- one row: brand, tabs, new tab button, window controls -->
+            <RowDefinition x:Name="RowHeader" Height="42" />
+            <RowDefinition x:Name="RowTools" Height="50" />
+            <RowDefinition x:Name="RowLoader" Height="3" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= header: tabs + window controls ================= -->
+        <Grid x:Name="DragRegion" Grid.Row="0" Background="{DynamicResource ChromeBg}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                        Margin="14,0,10,0" IsHitTestVisible="False" ToolTip="Nibble">
+                <Image Source="/Assets/nibble-wordmark.png" Height="26" Stretch="Uniform"
+                       VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
+                <!-- only ever visible in a private window -->
+                <c:PixelPanel x:Name="PrivatePill" Height="20" Margin="9,0,0,0" CornerSteps="2" CornerStep="2"
+                              Fill="{DynamicResource PrivateFill}" Stroke="{DynamicResource PrivateStroke}"
+                              StrokeThickness="1" Visibility="Collapsed" VerticalAlignment="Center"
+                              ToolTip="Private window — nothing is saved">
+                    <StackPanel Orientation="Horizontal" Margin="7,0,7,0">
+                        <Rectangle Width="5" Height="5" RadiusX="1" RadiusY="1" VerticalAlignment="Center"
+                                   Fill="{DynamicResource PrivateInk}" />
+                        <TextBlock Text="PRIVATE" FontFamily="{StaticResource PixelFont}" FontSize="8.5"
+                                   Margin="5,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource PrivateInk}" />
+                    </StackPanel>
+                </c:PixelPanel>
+            </StackPanel>
+
+            <ScrollViewer x:Name="TabScroll" Grid.Column="1" VerticalAlignment="Center"
+                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                          Focusable="False">
+                <StackPanel Orientation="Horizontal">
+                    <ItemsControl x:Name="TabStrip" ItemsSource="{Binding Tabs}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid x:Name="tabRoot" Height="30" Width="{Binding TabWidth}" Margin="0,0,6,0"
+                                      Background="Transparent"
+                                      PreviewMouseLeftButtonDown="Tab_PreviewMouseLeftButtonDown"
+                                      PreviewMouseDown="Tab_PreviewMouseDown"
+                                      MouseEnter="Tab_MouseEnter" MouseLeave="Tab_MouseLeave">
+                                    <c:PixelPanel x:Name="panel" CornerSteps="2" CornerStep="4"
+                                                  Fill="{DynamicResource SubBg}" Stroke="Transparent" StrokeThickness="0">
+                                        <Grid Margin="10,0,6,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid Grid.Column="0" Width="16" Height="16" Margin="0,0,9,0"
+                                                  VerticalAlignment="Center">
+                                                <c:VectorIcon x:Name="fallback" Data="{x:Static c:Icons.Globe}"
+                                                              Size="15" Foreground="{DynamicResource Ink3}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <Image x:Name="favicon" Source="{Binding Favicon}" Stretch="Uniform"
+                                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                            </Grid>
+
+                                            <TextBlock x:Name="title" Grid.Column="1" Text="{Binding Title}"
+                                                       FontSize="12.5" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource Ink2}" VerticalAlignment="Center" />
+
+                                            <TextBlock x:Name="sleep" Grid.Column="2" Text="z" Visibility="Collapsed"
+                                                       FontFamily="{StaticResource PixelFont}" FontSize="9" Margin="6,0,0,0"
+                                                       Foreground="{DynamicResource Ink3}" VerticalAlignment="Center"
+                                                       ToolTip="This tab is napping to save memory">
+                                                <TextBlock.Triggers>
+                                                    <EventTrigger RoutedEvent="Loaded">
+                                                        <BeginStoryboard>
+                                                            <Storyboard RepeatBehavior="Forever">
+                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                 From="0.25" To="1" Duration="0:0:1.1"
+                                                                                 AutoReverse="True" />
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </EventTrigger>
+                                                </TextBlock.Triggers>
+                                            </TextBlock>
+
+                                            <Button x:Name="close" Grid.Column="3" Style="{StaticResource TabCloseButton}"
+                                                    Visibility="Collapsed" Click="TabClose_Click" ToolTip="Close tab"
+                                                    AutomationProperties.Name="Close tab">
+                                                <c:VectorIcon Data="{x:Static c:Icons.Close}" Size="12"
+                                                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                            </Button>
+                                        </Grid>
+                                    </c:PixelPanel>
+
+                                    <Rectangle x:Name="bar" Height="3" Width="34" Fill="{DynamicResource Accent}"
+                                               VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                                               Visibility="Collapsed" RenderTransformOrigin="0.5,0.5">
+                                        <Rectangle.RenderTransform>
+                                            <ScaleTransform x:Name="barScale" ScaleX="1" ScaleY="1" />
+                                        </Rectangle.RenderTransform>
+                                    </Rectangle>
+                                </Grid>
+
+                                <DataTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="close" Property="Visibility" Value="Visible" />
+                                        <Setter TargetName="panel" Property="Fill" Value="{DynamicResource Hover}" />
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding HasFavicon}" Value="True">
+                                        <Setter TargetName="fallback" Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsSleeping}" Value="True">
+                                        <Setter TargetName="sleep" Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                        <Setter TargetName="panel" Property="Fill" Value="{DynamicResource CardBg}" />
+                                        <Setter TargetName="panel" Property="Stroke" Value="{DynamicResource HairlineStrong}" />
+                                        <Setter TargetName="panel" Property="StrokeThickness" Value="1" />
+                                        <Setter TargetName="close" Property="Visibility" Value="Visible" />
+                                        <Setter TargetName="title" Property="Foreground" Value="{DynamicResource Ink}" />
+                                        <Setter TargetName="title" Property="FontWeight" Value="SemiBold" />
+                                        <Setter TargetName="bar" Property="Visibility" Value="Visible" />
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="barScale"
+                                                                     Storyboard.TargetProperty="ScaleX"
+                                                                     From="0" To="1" Duration="0:0:0.22">
+                                                        <DoubleAnimation.EasingFunction>
+                                                            <BackEase Amplitude="1.1" EasingMode="EaseOut" />
+                                                        </DoubleAnimation.EasingFunction>
+                                                    </DoubleAnimation>
+                                                    <DoubleAnimation Storyboard.TargetName="tabRoot"
+                                                                     Storyboard.TargetProperty="Opacity"
+                                                                     From="0" To="1" Duration="0:0:0.16" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                                    <Setter TargetName="title" Property="Visibility" Value="Collapsed" />
+                                    <Setter TargetName="close" Property="Visibility" Value="Collapsed" />
+                                    <Setter TargetName="bar" Property="Width" Value="22" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- new tab sits directly to the right of the last tab -->
+                    <Button x:Name="NewTabButton" Style="{StaticResource IconButton}" Width="28" Height="28"
+                            Margin="2,0,0,0" VerticalAlignment="Center" Click="NewTab_Click"
+                            ToolTip="New tab (Ctrl+T)" AutomationProperties.Name="New tab">
+                        <c:VectorIcon Data="{x:Static c:Icons.Plus}" Size="17"
+                                      Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    </Button>
+                </StackPanel>
+            </ScrollViewer>
+
+            <StackPanel x:Name="WindowButtons" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="MinButton" Style="{StaticResource MinimizeWindowButton}" Click="Minimize_Click"
+                        ToolTip="Minimize" AutomationProperties.Name="Minimize">
+                    <c:VectorIcon Data="{x:Static c:Icons.Minimize}" Size="16"
+                                  Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+                <Button x:Name="MaxButton" Style="{StaticResource MaximizeWindowButton}" Click="Maximize_Click"
+                        ToolTip="Maximize" AutomationProperties.Name="Maximize">
+                    <c:VectorIcon Data="{x:Static c:Icons.Maximize}" Size="14"
+                                  Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+                <Button x:Name="CloseButton" Style="{StaticResource CloseWindowButton}" Click="Close_Click"
+                        ToolTip="Close (hold Shift to force quit)" AutomationProperties.Name="Close">
+                    <c:VectorIcon Data="{x:Static c:Icons.Close}" Size="16"
+                                  Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- ================= toolbar ================= -->
+        <Grid Grid.Row="1" Background="{DynamicResource ChromeBg}" Margin="16,0,16,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="BackButton" Grid.Column="0" Style="{StaticResource IconButton}" Click="Back_Click"
+                    ToolTip="Back (Alt+Left)" AutomationProperties.Name="Back">
+                <c:VectorIcon Data="{x:Static c:Icons.Back}" Size="18"
+                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+            <Button x:Name="ForwardButton" Grid.Column="1" Style="{StaticResource IconButton}" Click="Forward_Click"
+                    ToolTip="Forward (Alt+Right)" AutomationProperties.Name="Forward">
+                <c:VectorIcon Data="{x:Static c:Icons.Forward}" Size="18"
+                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+            <Button x:Name="ReloadButton" Grid.Column="2" Style="{StaticResource IconButton}" Click="Reload_Click"
+                    ToolTip="Reload (Ctrl+R)" AutomationProperties.Name="Reload">
+                <c:VectorIcon x:Name="ReloadIcon" Data="{x:Static c:Icons.Reload}" Size="17"
+                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+            <Button x:Name="HomeButton" Grid.Column="3" Style="{StaticResource IconButton}" Click="Home_Click"
+                    ToolTip="New tab page" AutomationProperties.Name="New tab page">
+                <c:VectorIcon Data="{x:Static c:Icons.Home}" Size="18"
+                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+
+            <Grid Grid.Column="4" Margin="12,0,12,0">
+                <c:PixelPanel x:Name="OmniFrame" Height="34" VerticalAlignment="Center"
+                              Fill="{DynamicResource SubBg}" Stroke="Transparent" StrokeThickness="1"
+                              CornerSteps="2" CornerStep="3">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="3" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="11,0,5,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <c:VectorIcon x:Name="SecIcon" Grid.Column="0" Data="{x:Static c:Icons.Lock}"
+                                          Size="14" Foreground="{DynamicResource Ink3}" VerticalAlignment="Center"
+                                          Margin="0,0,9,0" />
+                            <TextBox x:Name="Omni" Grid.Column="1" Style="{StaticResource OmniBox}"
+                                     GotKeyboardFocus="Omni_GotKeyboardFocus" LostKeyboardFocus="Omni_LostKeyboardFocus"
+                                     PreviewKeyDown="Omni_PreviewKeyDown" TextChanged="Omni_TextChanged"
+                                     MouseWheel="Omni_MouseWheel" />
+                            <Button x:Name="StarButton" Grid.Column="2" Style="{StaticResource IconButton}"
+                                    Width="26" Height="26" Click="Bookmark_Click" ToolTip="Bookmark (Ctrl+D)"
+                                    AutomationProperties.Name="Bookmark">
+                                <c:VectorIcon x:Name="StarIcon" Data="{x:Static c:Icons.Star}" Size="15"
+                                              Foreground="{DynamicResource Ink2}" />
+                            </Button>
+                        </Grid>
+                        <Rectangle x:Name="OmniUnderline" Grid.Row="1" Fill="{DynamicResource Accent}"
+                                   RenderTransformOrigin="0.5,0.5" Opacity="0">
+                            <Rectangle.RenderTransform>
+                                <ScaleTransform x:Name="OmniUnderlineScale" ScaleX="0" ScaleY="1" />
+                            </Rectangle.RenderTransform>
+                        </Rectangle>
+                    </Grid>
+                </c:PixelPanel>
+            </Grid>
+
+            <Button x:Name="ShieldButton" Grid.Column="5" Style="{StaticResource IconButton}" Width="Auto"
+                    MinWidth="52" Padding="8,0" Click="Shield_Click"
+                    ToolTip="Tracker shield — click to see what was blocked"
+                    AutomationProperties.Name="Tracker shield">
+                <StackPanel Orientation="Horizontal">
+                    <c:VectorIcon Data="{x:Static c:Icons.Shield}" Size="16" Filled="True"
+                                  Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="ShieldCount" Text="0" Margin="7,0,0,0" FontSize="11.5" VerticalAlignment="Center"
+                               Foreground="{DynamicResource Ink2}" />
+                </StackPanel>
+            </Button>
+
+            <Button x:Name="DownloadsButton" Grid.Column="6" Style="{StaticResource IconButton}" Click="Downloads_Click"
+                    ToolTip="Downloads" AutomationProperties.Name="Downloads">
+                <c:VectorIcon Data="{x:Static c:Icons.Download}" Size="17"
+                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+
+            <Button x:Name="ThemeButton" Grid.Column="7" Style="{StaticResource IconButton}" Click="Theme_Click"
+                    ToolTip="Light / dark" AutomationProperties.Name="Light or dark theme">
+                <c:VectorIcon Data="{x:Static c:Icons.Theme}" Size="17"
+                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+
+            <Button x:Name="MenuButton" Grid.Column="8" Style="{StaticResource IconButton}" Click="Menu_Click"
+                    ToolTip="Menu (Ctrl+K)" AutomationProperties.Name="Menu">
+                <c:VectorIcon Data="{x:Static c:Icons.Menu}" Size="18"
+                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+        </Grid>
+
+        <!-- ================= loading snake ================= -->
+        <c:PixelLoader x:Name="Loader" Grid.Row="2" Block="20" Gap="6" VerticalAlignment="Top" Height="3"
+                       Brush="{DynamicResource Accent}" />
+
+        <!-- ================= page surface ================= -->
+        <Grid x:Name="ContentHost" Grid.Row="3" Background="{DynamicResource WindowBg}" ClipToBounds="True" />
+
+        <!-- ================= find in page (Ctrl+F) =================
+             A popup, not a child of the page area: the engine's surface is its own window
+             and paints over anything WPF draws inside the same rectangle. -->
+        <Popup x:Name="FindPopup" Placement="Relative" PlacementTarget="{Binding ElementName=Shell}"
+               StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
+        <c:PixelPanel x:Name="FindBar" Width="400" Height="40" CornerSteps="2" CornerStep="3"
+                      Fill="{DynamicResource CardBg}" Stroke="{DynamicResource HairlineStrong}" StrokeThickness="1"
+                      Effect="{DynamicResource CardShadow}" UseLayoutRounding="True"
+                      SnapsToDevicePixels="True">
+            <Grid Margin="12,0,8,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <c:VectorIcon Grid.Column="0" Data="{x:Static c:Icons.Search}" Size="14"
+                              Foreground="{DynamicResource Ink3}" VerticalAlignment="Center" Margin="0,0,9,0" />
+                <TextBox x:Name="FindBox" Grid.Column="1" Style="{StaticResource OmniBox}" FontSize="13"
+                         VerticalAlignment="Center" PreviewKeyDown="FindBox_PreviewKeyDown"
+                         TextChanged="FindBox_TextChanged" AutomationProperties.Name="Find in page" />
+                <TextBlock x:Name="FindCount" Grid.Column="2" Text="" FontFamily="{StaticResource PixelFont}"
+                           FontSize="9" Foreground="{DynamicResource Ink3}" VerticalAlignment="Center"
+                           Margin="10,0,4,0" MinWidth="46" />
+                <Button x:Name="FindPrev" Grid.Column="3" Style="{StaticResource IconButton}" Width="26" Height="26"
+                        Click="FindPrev_Click" ToolTip="Previous match (Shift+Enter)"
+                        AutomationProperties.Name="Previous match">
+                    <c:VectorIcon Data="{x:Static c:Icons.Back}" Size="14"
+                                  Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+                <Button x:Name="FindNext" Grid.Column="4" Style="{StaticResource IconButton}" Width="26" Height="26"
+                        Click="FindNext_Click" ToolTip="Next match (Enter)"
+                        AutomationProperties.Name="Next match">
+                    <c:VectorIcon Data="{x:Static c:Icons.Forward}" Size="14"
+                                  Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+                <Button x:Name="FindClose" Grid.Column="5" Style="{StaticResource IconButton}" Width="26" Height="26"
+                        Click="FindClose_Click" ToolTip="Close (Esc)" AutomationProperties.Name="Close find">
+                    <c:VectorIcon Data="{x:Static c:Icons.Close}" Size="13"
+                                  Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+            </Grid>
+        </c:PixelPanel>
+        </Popup>
+
+        <!-- ================= engine missing ================= -->
+        <Grid x:Name="EngineMissingPanel" Grid.Row="3" Visibility="Collapsed"
+              Background="{DynamicResource WindowBg}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="520">
+                <c:VectorIcon Data="{x:Static c:Icons.Offline}" Size="46" HorizontalAlignment="Center"
+                              Foreground="{DynamicResource Ink3}" />
+                <TextBlock Text="Nibble needs the WebView2 engine" FontSize="21" FontWeight="SemiBold"
+                           Margin="0,18,0,0" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource Ink}" />
+                <TextBlock TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Margin="0,10,0,0"
+                           Foreground="{DynamicResource Ink2}"
+                           Text="Nibble does not ship a browser engine of its own — it drives the one Windows already has. Install the free Microsoft Edge WebView2 Runtime, then reopen Nibble." />
+                <Button x:Name="EngineInstallButton" Content="Get the WebView2 runtime" Width="230" Height="38"
+                        Margin="0,20,0,0" HorizontalAlignment="Center"
+                        Style="{StaticResource PrimaryButton}" Click="EngineInstall_Click" />
+                <TextBlock x:Name="EngineErrorText" FontFamily="{StaticResource PixelFont}" FontSize="9"
+                           Margin="0,16,0,0" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                           Foreground="{DynamicResource Ink3}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- ================= popups ================= -->
+        <Popup x:Name="SuggestionsPopup" PlacementTarget="{Binding ElementName=OmniFrame}" Placement="Bottom"
+               StaysOpen="True" AllowsTransparency="True" PopupAnimation="None" VerticalOffset="7">
+            <c:PixelPanel UseLayoutRounding="True" SnapsToDevicePixels="True"
+                          Fill="{DynamicResource CardBg}" Stroke="{DynamicResource HairlineStrong}" StrokeThickness="1"
+                          CornerSteps="3" CornerStep="3" Margin="16" Effect="{DynamicResource PopupShadow}">
+                <StackPanel x:Name="SuggestionList" Margin="6" />
+            </c:PixelPanel>
+        </Popup>
+
+        <Popup x:Name="MenuPopup" Placement="Bottom" StaysOpen="True" AllowsTransparency="True"
+               PopupAnimation="Fade" VerticalOffset="8" HorizontalOffset="-6">
+            <c:PixelPanel UseLayoutRounding="True" SnapsToDevicePixels="True"
+                          Fill="{DynamicResource CardBg}" Stroke="{DynamicResource HairlineStrong}" StrokeThickness="1"
+                          CornerSteps="3" CornerStep="3" Margin="16,8,16,16" Effect="{DynamicResource PopupShadow}">
+                <StackPanel>
+                    <TextBlock x:Name="MenuTitle" Text="Menu" FontFamily="{StaticResource PixelFont}" FontSize="10"
+                               Margin="14,14,14,10" Foreground="{DynamicResource Ink2}" />
+                    <!-- a scroll viewer so a tall menu can never run off a short window -->
+                    <ScrollViewer x:Name="MenuScroll" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="MenuList" Margin="6,0,6,8" />
+                    </ScrollViewer>
+                </StackPanel>
+            </c:PixelPanel>
+        </Popup>
+
+        <Popup x:Name="PalettePopup" Placement="Center" StaysOpen="True" AllowsTransparency="True"
+               PopupAnimation="Fade" Width="520">
+            <c:PixelPanel UseLayoutRounding="True" SnapsToDevicePixels="True"
+                          Fill="{DynamicResource CardBg}" Stroke="{DynamicResource HairlineStrong}" StrokeThickness="1"
+                          CornerSteps="3" CornerStep="3" Margin="16" Effect="{DynamicResource PopupShadow}">
+                <StackPanel>
+                    <Grid Margin="14,14,14,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <c:VectorIcon Grid.Column="0" Data="{x:Static c:Icons.Sparkle}" Size="16"
+                                      Foreground="{DynamicResource Accent}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                        <TextBox x:Name="PaletteQuery" Grid.Column="1" Style="{StaticResource OmniBox}" FontSize="15"
+                                 PreviewKeyDown="PaletteQuery_PreviewKeyDown" TextChanged="PaletteQuery_TextChanged" />
+                        <TextBlock Grid.Column="2" Text="ESC" FontFamily="{StaticResource PixelFont}" FontSize="9"
+                                   Foreground="{DynamicResource Ink3}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Hairline}" />
+                    <ScrollViewer x:Name="PaletteScroll" MaxHeight="330" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="PaletteList" Margin="6,6,6,10" />
+                    </ScrollViewer>
+                </StackPanel>
+            </c:PixelPanel>
+        </Popup>
+
+        <Popup x:Name="ToastPopup" Placement="Relative" StaysOpen="True" AllowsTransparency="True"
+               PopupAnimation="None">
+            <StackPanel x:Name="ToastList" Width="330" Margin="16" UseLayoutRounding="True" SnapsToDevicePixels="True" />
+        </Popup>
+    </Grid>
+</Window>

@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Nibble</AssemblyName>
+    <RootNamespace>Nibble</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\nibble.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Company>Nibble</Company>
+    <Product>Nibble</Product>
+    <Description>A tiny, tasty pixel-perfect browser that rides on the WebView2 runtime Windows already ships.</Description>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Release/optimisation pipeline for the host process itself. -->
+    <Optimize>true</Optimize>
+    <DebugSymbols>false</DebugSymbols>
+    <!-- ReadyToRun was measured (see README "Build verification"): interleaved A/B gave
+         a 953 ms vs 960 ms median cold-start-to-window and identical CPU time, while
+         adding ~0.9 MB. Off by default; enable with -p:PublishReadyToRun=true. -->
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredPGO>true</TieredPGO>
+    <TieredCompilationQuickJit>true</TieredCompilationQuickJit>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <CopyDebugSymbolFilesFromPackages>false</CopyDebugSymbolFilesFromPackages>
+    <CopyDocumentationFilesFromPackages>false</CopyDocumentationFilesFromPackages>
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- Framework-dependent by design; pinned so tooling that references this project
+         does not flip it to self-contained. -->
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Fonts\Silkscreen-Regular.ttf" />
+    <Resource Include="Assets\Fonts\Silkscreen-Bold.ttf" />
+    <Resource Include="Assets\nibble.png" />
+    <Resource Include="Assets\nibble-mark.png" />
+    <Resource Include="Assets\nibble-wordmark.png" />
+    <EmbeddedResource Include="Assets\newtab.html" />
+    <EmbeddedResource Include="Assets\error.html" />
+    <EmbeddedResource Include="Assets\nibble-mark.png" />
+    <EmbeddedResource Include="Assets\nibble-wordmark.png" />
+  </ItemGroup>
+
+  <!-- Themes ship inside the app and are extracted next to the built-in pages, where the
+       new tab page can load them by relative path. The logical name keeps the folder
+       structure readable ("nibble-theme/minecraft/blocks/dirt.png"). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Themes\**\*"
+                      LogicalName="nibble-theme/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Ship only what Nibble uses: the WPF WebView2 assembly (WinForms one is unused). -->
+  <Target Name="TrimUnusedWebView2Assemblies" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(Filename)' == 'Microsoft.Web.WebView2.WinForms'" />
+    </ItemGroup>
+  </Target>
+
+</Project>
