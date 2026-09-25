@@ -56,6 +56,9 @@ Ordered by what blocks a real person from using it.
 
 ## Nice to have before the first release
 
+- [ ] **Brand the installer wizard.** It uses Inno's stock artwork (the blue box) on the
+      welcome and finish pages; `WizardImageFile` / `WizardSmallImageFile` take a Nibble-made
+      image. The exe's own icon already shows in the title bar and on the shortcuts.
 - [ ] **A short demo clip** (15–20 seconds): instant startup, Ctrl+K, the theme shop, the
       water theme's waves. This is the thing people share.
 - [ ] **A verdict on extensions.** Chrome Web Store support is impossible on WebView2; it

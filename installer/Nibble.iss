@@ -5,6 +5,10 @@
 ;  under %LocalAppData%\Programs\Nibble, Start-menu and optional desktop shortcuts, the
 ;  browser entries written for you, and a proper uninstaller in Apps & features.
 ;
+;  There is deliberately no "install for all users" choice: PrivilegesRequired=lowest with
+;  no overrides means Windows never sees an elevation prompt, and {autopf} resolves to the
+;  per-user Programs folder. Nibble keeps everything it owns under the user's own hive.
+;
 ;  Build it with:  ISCC.exe installer\Nibble.iss
 ;  (or tools\package.ps1, which builds the exe first and then this)
 ;
@@ -44,7 +48,6 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
 MinVersion=10.0
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
