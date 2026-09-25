@@ -40,12 +40,14 @@ jobs:
           path: dist/**
 
       # Tagging v1.0.0 turns the same build into a release, with the installer if Inno
-      # Setup was installed in the step above.
+      # Setup was installed in the step above. The notes come from the file that matches
+      # the tag, so the release text lives in the repository next to the code it describes
+      # (docs/release-notes-v1.0.0.md) instead of being generated from commit titles.
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          body_path: docs/release-notes-${{ github.ref_name }}.md
           files: |
             dist/Nibble.exe
             dist/Nibble-*-Setup.exe
-          generate_release_notes: true
