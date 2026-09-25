@@ -1,5 +1,32 @@
 # Nibble changelog
 
+## 1.1.2 — smaller, and easier to call your own
+
+**The exe is 52,787 bytes smaller: 2,228,347 → 2,175,560 bytes.** The page mark and the
+wordmark were embedded in the assembly twice — once as WPF resources, because the XAML draws
+them, and again as manifest resources, because `Pages.ReadEmbeddedBytes` pulled them out for
+the built-in pages. The pages now read the same WPF resource, so the second copy is gone. Same
+bytes end up next to the extracted pages (verified: `mark.png` 5,294 and `wordmark.png` 48,514,
+identical to the source), and the whole browser is now **under 2.2 MB by any measure** — 2.08
+MiB.
+
+**How the project describes itself changed**, because the size and the licence are the two
+strongest things it has:
+
+- The repository description now leads with *free, open-source, under 2.2 MB*, and says plainly
+  that it is a shell over the Chromium engine Windows already ships rather than a Chromium
+  build.
+- The README opens the same way, and gained two sections: **Why it is this small** (what
+  borrowing the engine buys, and what it costs — no extensions, no patching the engine
+  yourself) and **Make it your browser**.
+- **`docs/rebranding.md`** is new: every place the name, artwork and URLs live, in the order
+  that breaks something if you skip it. It calls out the five that matter — the assembly name,
+  the pack URIs, the installer's AppId (give it a *new* GUID), the profile folder, and the
+  update feed, which otherwise updates your fork into Nibble.
+- The link-preview card (`assets/social-preview.png`) was redrawn for the new wording.
+
+Nothing about how the browser behaves changed.
+
 ## 1.1.1 — full screen keeps its bottom
 
 **The bug:** in full screen the bottom of the page was cut off. The window was the size of the

@@ -10,7 +10,7 @@
     <RootNamespace>Nibble</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\nibble.ico</ApplicationIcon>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <Company>Nibble</Company>
     <Product>Nibble</Product>
     <Description>A tiny, tasty pixel-perfect browser that rides on the WebView2 runtime Windows already ships.</Description>
@@ -50,8 +50,6 @@
     <Resource Include="Assets\nibble-wordmark.png" />
     <EmbeddedResource Include="Assets\newtab.html" />
     <EmbeddedResource Include="Assets\error.html" />
-    <EmbeddedResource Include="Assets\nibble-mark.png" />
-    <EmbeddedResource Include="Assets\nibble-wordmark.png" />
   </ItemGroup>
 
   <!-- Themes ship inside the app and are extracted next to the built-in pages, where the
@@ -71,5 +69,6 @@
   </Target>
 
 </Project>
+
 
 

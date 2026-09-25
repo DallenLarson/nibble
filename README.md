@@ -1,14 +1,18 @@
-# Nibble 1.0
+# Nibble
 
 ![Nibble](assets/nibble-logo.png)
 
-A tiny, tasty web browser for Windows. Apple-clean shell with a pixel streak: smooth
-open-source vector icons, stair-stepped pixel corners, one accent colour you choose,
-hairline separators, and springy 120–240 ms motion on top of a real Chromium engine.
+**A free, open-source web browser for Windows in under 2.2 MB.** Not a Chromium build — a
+shell over the Chromium engine Windows already ships (Microsoft Edge WebView2), which is why
+the whole browser is one exe you can email to somebody.
 
-The engine is the one Windows already ships — Microsoft Edge WebView2 — so Nibble itself is
-**one 2.2 MB exe**. No bundled browser, no services, no accounts, no telemetry, and nothing
-left running when the last window closes.
+Apple-clean with a pixel streak: smooth open-source vector icons, stair-stepped pixel corners,
+one accent colour you choose, hairline separators, springy 120–240 ms motion, and a real
+Chromium engine underneath — the one Windows keeps patched for you.
+
+No telemetry, no accounts, no services, no bloat, and nothing left running when the last window
+closes. **MIT licensed: fork it, rebrand it, and ship it as your own browser** — see
+[Make it your browser](#make-it-your-browser).
 
 ## Gallery
 
@@ -38,7 +42,7 @@ drift away from the app.
 ## Install
 
 **[Download the installer](https://github.com/DallenLarson/nibble/releases/latest)** —
-`Nibble-1.1.1-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
+`Nibble-1.1.2-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
 would rather not install to.)
 
 It is a per-user Inno Setup installer — no administrator prompt, files in
@@ -50,8 +54,8 @@ Build the browser and the installer in one command:
 
 ```
 powershell -File tools/package.ps1
-  -> dist/Nibble.exe              2.2 MB, the whole browser
-  -> dist/Nibble-1.1.1-Setup.exe  the installer
+  -> dist/Nibble.exe              under 2.2 MB, the whole browser
+  -> dist/Nibble-1.1.2-Setup.exe  the installer
 ```
 
 That needs the .NET SDK, and [Inno Setup 6](https://jrsoftware.org/isdl.php) for the installer
@@ -61,6 +65,40 @@ That needs the .NET SDK, and [Inno Setup 6](https://jrsoftware.org/isdl.php) for
 > on, Windows refuses to run unsigned binaries — not a warning, a block. See
 > [Before you ship it to strangers](#before-you-ship-it-to-strangers); it is the one thing
 > standing between this source and a stranger's PC.
+
+## Why it is this small
+
+Most browsers ship their own copy of Chromium: 150–300 MB of engine, its own updater, its own
+process for patching it. Nibble ships **none of that**. It drives the WebView2 runtime that
+Windows already has — the same Chromium Microsoft Edge uses, already installed on Windows 10
+and 11, already kept current by Edge Update. Nibble is the part you can actually see: the
+chrome, the tabs, the home page, the themes, the privacy settings.
+
+That is the whole trick, and it buys a lot:
+
+| | Nibble | A browser that bundles Chromium |
+|---|---|---|
+| Download | one ~2.2 MB exe | 80–150 MB |
+| Build it yourself | seconds (no engine checkout, no `gn gen`) | hours, tens of GB of toolchain |
+| Engine updates | Microsoft's, monthly, automatic | the browser's own job, forever |
+| Memory | just the pages you have open | engine code that has to live somewhere |
+
+It costs something too, and it is worth saying plainly: the engine is not yours to patch, so a
+Chromium vulnerability is Microsoft's to fix and not something Nibble can ship around. Chrome
+Web Store extensions cannot work — WebView2 does not run them. And the two pieces it needs
+(.NET 8 Desktop Runtime and WebView2) are both things Windows already ships, and the installer
+checks for both.
+
+## Make it your browser
+
+Nibble is **MIT licensed** and built to be taken: one project, no Chromium to check out, a full
+build in seconds, and a `docs/rebranding.md` that lists every place the name, artwork and URLs
+live — including the five that break something if you miss them (the assembly name, the pack
+URIs, the installer's AppId, the profile folder, and the update feed).
+
+Rename it, drop in your own logo and accent, point the updater at your own releases, and it is
+your browser. The parts that cost real money elsewhere — the engine, its update pipeline, the
+rendering, the sandbox, the network stack — are the parts Windows gives you.
 
 ## Updates
 
@@ -457,7 +495,7 @@ The shell is deliberately small; the engine is the one Windows already has.
 
 | Fact | Value |
 |---|---|
-| `Nibble.exe` | 2.2 MB single file, framework-dependent, no symbols |
+| `Nibble.exe` | 2,175,560 bytes (2.08 MiB) — one file, framework-dependent, no symbols |
 | Host runtime | .NET 8, tiered compilation + TieredPGO on, server GC off |
 | ReadyToRun | off: measured neutral at this size (~953 ms vs ~960 ms cold start) and +0.9 MB |
 | Engine | WebView2 (Microsoft-signed, shared, updated by Edge Update) |
@@ -629,7 +667,7 @@ Windows-only, and needed for anything that touches the shell:
 
 ```
 powershell -File tools/SmokeTest.ps1   -Exe dist\Nibble.exe -Profile scratch\smoke-profile
-powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.1.1-Setup.exe
+powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.1.2-Setup.exe
 powershell -File tools/UpdateTest.ps1            # builds a 9.9.9 "release" and updates into it
 ```
 
@@ -647,6 +685,7 @@ not** — 16 checks. On a machine with Smart App Control on, the uninstaller its
 
 Because this machine blocks freshly built DLLs under Application Control, the .NET suites have
 to be published as single-file executables to run.
+
 
 
 

@@ -111,9 +111,9 @@ $logoHeight = [int][Math]::Round($logo.Height * ($logoWidth / $logo.Width))
 $logoTop = 84
 $art.DrawImage($logo, (($cardWidth - $logoWidth) / 2), $logoTop, $logoWidth, $logoHeight)
 
-Draw-Spaced "A TINY, TASTY WEB BROWSER FOR WINDOWS" 23 $ink2 ($cardWidth / 2) ($logoTop + $logoHeight + 30) 3.8
+Draw-Spaced "A FREE, OPEN-SOURCE BROWSER FOR WINDOWS" 23 $ink2 ($cardWidth / 2) ($logoTop + $logoHeight + 30) 3.8
 
-$chipLabels = @("2.2 MB", "NO TELEMETRY", "THE ENGINE WINDOWS ALREADY HAS")
+$chipLabels = @("UNDER 2.2 MB", "NO TELEMETRY", "THE CHROMIUM ENGINE WINDOWS ALREADY HAS")
 $chipWidths = @()
 foreach ($label in $chipLabels) { $chipWidths += ($art.MeasureString($label, (New-Object System.Drawing.Font($pixelName, 17, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel))).Width + 40) }
 $rowWidth = ($chipWidths | Measure-Object -Sum).Sum + (14 * ($chipLabels.Count - 1))
@@ -126,7 +126,9 @@ for ($i = 0; $i -lt $chipLabels.Count; $i++) {
 # one accent pixel, saying whose card this is
 $accentBrush = New-Object System.Drawing.SolidBrush $accent
 $art.FillRectangle($accentBrush, ($cardWidth / 2) - 8, 534, 16, 16)
-Draw-Spaced "OPEN SOURCE . NIBBLE 1.0" 15 $ink2 ($cardWidth / 2) 562 3.2
+# no version here: the card is uploaded by hand, and a version number on it goes stale the
+# moment the next release ships
+Draw-Spaced "MIT LICENSED . WINDOWS 10 AND 11" 15 $ink2 ($cardWidth / 2) 562 3.2
 
 $full = [System.IO.Path]::GetFullPath($Out)
 New-Item -ItemType Directory -Force -Path (Split-Path $full) | Out-Null

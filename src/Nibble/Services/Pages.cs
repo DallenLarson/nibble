@@ -153,12 +153,14 @@ public static class Pages
     {
         try
         {
-            var assembly = typeof(Pages).Assembly;
-            var resource = assembly.GetManifestResourceNames()
-                .FirstOrDefault(n => n.EndsWith("." + name, StringComparison.OrdinalIgnoreCase));
+            // The brand images are WPF resources (XAML draws them), and this pulls the same
+            // bytes out to sit next to the extracted pages. They used to be embedded a second
+            // time as manifest resources for this call alone: 53,808 bytes of the bundle were
+            // the same two PNGs twice, which is what kept the exe above 2.2 MB.
+            var resource = System.Windows.Application.GetResourceStream(
+                new Uri($"pack://application:,,,/Nibble;component/Assets/{name}", UriKind.Absolute));
             if (resource is null) return [];
-            using var stream = assembly.GetManifestResourceStream(resource);
-            if (stream is null) return [];
+            using var stream = resource.Stream;
             using var buffer = new MemoryStream();
             stream.CopyTo(buffer);
             return buffer.ToArray();
