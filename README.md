@@ -38,7 +38,7 @@ drift away from the app.
 ## Install
 
 **[Download the installer](https://github.com/DallenLarson/nibble/releases/latest)** —
-`Nibble-1.0.1-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
+`Nibble-1.0.2-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
 would rather not install to.)
 
 It is a per-user Inno Setup installer — no administrator prompt, files in
@@ -51,7 +51,7 @@ Build the browser and the installer in one command:
 ```
 powershell -File tools/package.ps1
   -> dist/Nibble.exe              2.2 MB, the whole browser
-  -> dist/Nibble-1.0.1-Setup.exe  the installer
+  -> dist/Nibble-1.0.2-Setup.exe  the installer
 ```
 
 That needs the .NET SDK, and [Inno Setup 6](https://jrsoftware.org/isdl.php) for the installer
@@ -549,6 +549,7 @@ tools/SmokeTest.ps1      drives the shipping build through the wizard and every 
 tools/InstallerTest.ps1  installs silently, runs the installed browser, uninstalls again
 tools/Shots.ps1          regenerates the screenshots above from the shipping build
 tools/SocialCard.ps1     the picture GitHub shows when a Nibble link is shared
+tools/CursorProbe.ps1    parks the pointer on every control and reports a flickering cursor
 tools/Bench.ps1          cold-start and memory numbers
 tools/*Probe.ps1         window, popup, tooltip and layout probes used to verify changes
 ```
@@ -585,7 +586,7 @@ Windows-only, and needed for anything that touches the shell:
 
 ```
 powershell -File tools/SmokeTest.ps1   -Exe dist\Nibble.exe -Profile scratch\smoke-profile
-powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.0.1-Setup.exe
+powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.0.2-Setup.exe
 ```
 
 `InstallerTest.ps1` installs silently, checks every trace the installer should leave, runs the
@@ -595,3 +596,4 @@ not** — 16 checks. On a machine with Smart App Control on, the uninstaller its
 
 Because this machine blocks freshly built DLLs under Application Control, the .NET suites have
 to be published as single-file executables to run.
+

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
@@ -2843,6 +2844,86 @@ public partial class MainWindow : Window
     private const int HtCaption = 2;
     private const int HtClient = 1;
 
+    private const int WmSetCursor = 0x0020;
+    private const int IdcArrow = 32512;
+    private const int IdcIBeam = 32513;
+    private const int IdcHand = 32649;
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out NativePoint point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr LoadCursor(IntPtr instance, int name);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetCursor(IntPtr cursor);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
+
+    /// <summary>
+    /// Answers WM_SETCURSOR for the client area from where the pointer really is.
+    ///
+    /// WPF resolves the cursor from its own cached mouse position, and Windows sends
+    /// WM_SETCURSOR *before* the WM_MOUSEMOVE that would bring that cache up to date. So for
+    /// one message WPF is answering about the pixel the pointer just left: coming onto a
+    /// button it says arrow, then hand, then arrow again as the pointer moves along it. That
+    /// alternating hand/arrow is what "the mouse glitches over a button" turned out to be —
+    /// measured as hand,arrow,hand,arrow at 30 ms intervals with the pointer sitting still on
+    /// one button, while the same pointer over a link in the page (the engine draws that
+    /// cursor itself) never changed.
+    ///
+    /// Answering every client-area message keeps one source of truth: if this and WPF answer
+    /// different messages for the same pixel, a pointer resting on a button's edge still
+    /// flickers. Cursors this does not recognise (resize edges, and anything a future control
+    /// asks for) are left alone by returning false.
+    /// </summary>
+    private bool AnswerSetCursorFromPointer()
+    {
+        try
+        {
+            if (!GetCursorPos(out var native)) return false;
+            var point = PointFromScreen(new Point(native.X, native.Y));
+            var under = InputHitTest(point) as DependencyObject;
+            var cursor = EffectiveCursor(under);
+
+            var idc = cursor is null || cursor == Cursors.Arrow ? IdcArrow
+                : cursor == Cursors.Hand ? IdcHand
+                : cursor == Cursors.IBeam ? IdcIBeam
+                : 0;
+            if (idc == 0) return false;
+
+            SetCursor(LoadCursor(IntPtr.Zero, idc));
+            return true;
+        }
+        catch
+        {
+            // A cursor is not worth an exception: let WPF answer if anything goes wrong.
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The cursor of the element under a point. Cursor is an inherited property in WPF, but
+    /// the walk is kept anyway so a child that does not inherit (a template part with its own
+    /// value) still reports the button's hand rather than nothing.
+    /// </summary>
+    private static Cursor? EffectiveCursor(DependencyObject? node)
+    {
+        while (node is not null)
+        {
+            if (node is FrameworkElement { Cursor: { } cursor }) return cursor;
+            node = node is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(node)
+                : LogicalTreeHelper.GetParent(node);
+        }
+        return null;
+    }
+
     /// <summary>
     /// Room the menu card keeps around itself inside its popup window so the drop shadow
     /// has somewhere to fall. The top strip is invisible and only ever a problem when the
@@ -2860,6 +2941,16 @@ public partial class MainWindow : Window
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == WmSetCursor && (int)(lParam.ToInt64() & 0xFFFF) == HtClient)
+        {
+            if (AnswerSetCursorFromPointer())
+            {
+                // Without this the hook's answer is thrown away and WPF still applies its own.
+                handled = true;
+                return new IntPtr(1);
+            }
+        }
+
         if (msg != WmNcHitTest || RowHeader.Height.Value <= 0) return IntPtr.Zero;
 
         var x = (short)(lParam.ToInt64() & 0xFFFF);

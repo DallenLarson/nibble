@@ -17,7 +17,7 @@
 ; =====================================================================
 
 #define AppName        "Nibble"
-#define AppVersion     "1.0.1"
+#define AppVersion     "1.0.2"
 #define AppPublisher   "Dallen Larson"
 #define AppUrl         "https://github.com/DallenLarson/nibble"
 #define AppExeName     "Nibble.exe"

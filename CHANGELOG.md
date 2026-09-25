@@ -1,5 +1,38 @@
 # Nibble changelog
 
+## 1.0.2 — the pointer stops flickering over buttons
+
+**The bug:** hovering a toolbar button made the pointer flicker between the hand and the
+arrow, which reads as the mouse "glitching" or "freaking out". It was WPF's, not the
+control's: Windows sends `WM_SETCURSOR` asking what the client area should show, and WPF
+answers from its *cached* mouse position — which is one message behind, because the
+`WM_MOUSEMOVE` that would refresh it has not been delivered yet. So for one message WPF was
+answering about the pixel the pointer had just left.
+
+Measured, with the pointer parked on one button and the app logging every message it was
+sent: `real=100,67  cached=76,67  hit=PixelPanel  cursor=ARROW` — a fresh hit test at where
+the pointer actually was said "button", while WPF's answer said "arrow". Sampling the cursor
+at 10 ms over the same button gave `hand arrow hand arrow …`; over a link in the page, which
+the engine draws itself, it never changed.
+
+**The fix:** the shell answers `WM_SETCURSOR` for its client area from where the pointer
+really is (`MainWindow.AnswerSetCursorFromPointer`), and marks the message handled so WPF's
+stale answer cannot be applied on top. Everything unknown — resize edges, and any cursor a
+future control asks for — is still left to WPF. After the fix the same parked measurement is
+a single unbroken run of `hand`, and the engine's own cursors are untouched (a link in the
+page still shows the hand).
+
+Also in this release:
+
+- **Text fields show the I-beam.** A `TextBox` only draws it because its default template says
+  so, and Nibble's `OmniBox` style replaces that template — the address bar, find bar, command
+  palette and the wizard's name field were all showing a plain arrow. They now set
+  `Cursor=IBeam` explicitly.
+- `tools/CursorProbe.ps1` is the regression test: it parks the real pointer on every control
+  and reports any control whose cursor changes while the pointer is still on it. It samples
+  4 px inside an edge, not 2 px — a control's stair-stepped outline and margin mean 2 px is
+  the boundary, where alternating between a control and its parent is correct.
+
 ## 1.0.1 — the installer can no longer sit and wait
 
 **The bug:** on a machine where `Nibble.exe` cannot start — no .NET 8 Desktop Runtime, or

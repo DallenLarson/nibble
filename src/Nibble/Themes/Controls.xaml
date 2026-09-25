@@ -95,6 +95,10 @@
 
     <!-- ============ omnibox text ============ -->
     <Style x:Key="OmniBox" TargetType="TextBox">
+        <!-- A TextBox draws the I-beam only because its default template says so, and this
+             style replaces that template; without this the address bar, the find bar, the
+             command palette and the wizard's name field all show a plain arrow. -->
+        <Setter Property="Cursor" Value="IBeam" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="{DynamicResource Ink}" />

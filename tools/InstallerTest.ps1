@@ -1,7 +1,7 @@
 # Installs Nibble silently, checks every trace it is supposed to leave, runs it, then
 # uninstalls it silently and checks the traces are gone - and that the profile is not.
 #
-#   powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.0.1-Setup.exe
+#   powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.0.2-Setup.exe
 param(
     [Parameter(Mandatory = $true)][string]$Setup
 )
@@ -116,3 +116,4 @@ if ($blockedByPolicy) {
 
 "`n$failures check(s) failed"
 exit $failures
+
