@@ -37,7 +37,11 @@ drift away from the app.
 
 ## Install
 
-`installer/Nibble.iss` is a per-user Inno Setup installer — no administrator prompt, files in
+**[Download the installer](https://github.com/DallenLarson/nibble/releases/latest)** —
+`Nibble-1.0.0-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
+would rather not install to.)
+
+It is a per-user Inno Setup installer — no administrator prompt, files in
 `%LocalAppData%\Programs\Nibble`, Start-menu entries for Nibble and for a private window, an
 entry in **Apps & features**, and a real uninstaller that keeps your browsing profile unless
 you ask it to delete it. Installing also offers Nibble to Windows' browser list.
@@ -497,10 +501,10 @@ Written down here honestly, because none of it is solved by the code:
   and tested, but no build tells a user a newer one exists. WebView2 keeps the *engine*
   current; shell fixes still need an update check (Squirrel/NetSparkle or an MSIX), or a
   README that says "check the releases page".
-- **The publisher details are placeholders.** `installer/Nibble.iss` says
-  `AppPublisher = "Nibble contributors"` and `AppUrl = https://github.com/`; `LICENSE` says
-  "Nibble contributors". Put your own name, URL and year in those three places before a
-  release goes out, and update or delete the working notes in `docs/`.
+- **The name has not been cleared.** "Nibble" is a common word: the Microsoft Store name and
+  a trademark search (per jurisdiction) are both still open. `installer/Nibble.iss` names
+  `Dallen Larson` as the publisher and links this repository; `LICENSE` is MIT, held by the
+  same name.
 - **Runtime prerequisites**: .NET 8 Desktop plus the WebView2 runtime.
 - **Migration is bookmarks and the search engine only.**
 - **The theme shop is local** — an online catalogue needs a host.
@@ -538,6 +542,7 @@ tools/*Test.js           find logic, private page behaviour, water physics
 tools/SmokeTest.ps1      drives the shipping build through the wizard and every surface
 tools/InstallerTest.ps1  installs silently, runs the installed browser, uninstalls again
 tools/Shots.ps1          regenerates the screenshots above from the shipping build
+tools/SocialCard.ps1     the picture GitHub shows when a Nibble link is shared
 tools/Bench.ps1          cold-start and memory numbers
 tools/*Probe.ps1         window, popup, tooltip and layout probes used to verify changes
 ```

@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Nibble contributors
+Copyright (c) 2026 Dallen Larson
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,5 +31,4 @@ Third-party work that ships inside Nibble keeps its own terms:
 * The rendering engine is not bundled: Nibble drives the Microsoft Edge WebView2
   Runtime that Windows already provides, under Microsoft's terms.
 
-The copyright line above is a placeholder for the project owner to set; MIT needs a
-real holder named before the repository goes public.
+That is everything: Nibble's own source is MIT, and nothing else is bundled with it.
