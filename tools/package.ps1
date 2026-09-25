@@ -62,20 +62,31 @@ $exe = Join-Path $outDir "Nibble.exe"
 if ($SkipInstaller) { "installer: skipped"; exit 0 }
 
 # Inno Setup is not a build dependency of the browser, only of the installer.
+# Note the braces: $env:ProgramFiles(x86) would be read as $env:ProgramFiles followed by the
+# literal text "(x86)", which is not a path that exists - that is how a release once shipped
+# without its installer.
 $iscc = @(
-    "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe",
+    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
     "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
-) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
-
+)
+# a per-user install, another drive, or a future Inno 7 can put it somewhere else entirely
+$iscc += @(Get-ChildItem "$env:ProgramFiles*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue |
+    ForEach-Object { $_.FullName })
+$iscc = @($iscc | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1)
 if (-not $iscc) {
+    $onPath = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    if ($onPath) { $iscc = @($onPath.Source) }
+}
+
+if ($iscc.Count -eq 0) {
     "installer: Inno Setup 6 not found - skipping Setup.exe"
     "           install it from https://jrsoftware.org/isdl.php and run this again"
     exit 0
 }
 
-"building the installer with $iscc ..."
-& $iscc (Join-Path $root "installer\Nibble.iss") | Select-String -Pattern "Successful|Error|Warning" |
+"building the installer with $($iscc[0]) ..."
+& $iscc[0] (Join-Path $root "installer\Nibble.iss") | Select-String -Pattern "Successful|Error|Warning" |
     ForEach-Object { $_.Line }
 if ($LASTEXITCODE -ne 0) { throw "installer build failed" }
 

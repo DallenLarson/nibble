@@ -38,6 +38,17 @@ jobs:
           ./tools/package.ps1
           ./tools/verify.ps1
 
+      # A tag is a release, and a release without its installer is not one. package.ps1 skips
+      # the installer when it cannot find Inno Setup, which is right for a normal push and
+      # wrong here - so say so loudly instead of shipping half an artifact set.
+      - name: A release must have its installer
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist/Nibble-*-Setup.exe -ErrorAction SilentlyContinue
+          if (-not $setup) { throw "no Setup.exe was built - Inno Setup is missing on this runner" }
+          "installer: $($setup.Name) ($($setup.Length) bytes)"
+
       - name: Upload the browser
         uses: actions/upload-artifact@v4
         with:
