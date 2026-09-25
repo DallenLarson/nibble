@@ -33,7 +33,7 @@ if ($LASTEXITCODE -ne 0) { throw "publish failed" }
 
 "copying the documentation and licences..."
 foreach ($file in @("README.md", "CHANGELOG.md", "LICENSE", "Icons-LICENSE.txt",
-                    "Silkscreen-OFL.txt", "Monocraft-OFL.txt")) {
+                    "THIRD-PARTY-NOTICES.txt", "Silkscreen-OFL.txt", "Monocraft-OFL.txt")) {
     Copy-Item (Join-Path $root $file) (Join-Path $outDir $file) -Force
 }
 Copy-Item (Join-Path $root "assets\nibble.png") (Join-Path $outDir "nibble.png") -Force

@@ -70,6 +70,7 @@ Source: "..\dist\{#AppExeName}";               DestDir: "{app}"; Flags: ignoreve
 Source: "..\dist\README.md";                   DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\CHANGELOG.md";                DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\LICENSE";                     DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\THIRD-PARTY-NOTICES.txt";     DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\Icons-LICENSE.txt";           DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\Silkscreen-OFL.txt";          DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\Monocraft-OFL.txt";           DestDir: "{app}"; Flags: ignoreversion

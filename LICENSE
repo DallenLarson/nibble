@@ -19,16 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Third-party work that ships inside Nibble keeps its own terms:
-
-* Icon path data — Lucide (ISC) and Simple Icons (CC0). See Icons-LICENSE.txt.
-* Silkscreen typeface — SIL Open Font License 1.1. See Silkscreen-OFL.txt.
-* Monocraft typeface (the Minecraft-style theme) — SIL Open Font License 1.1.
-  See Monocraft-OFL.txt.
-* The rendering engine is not bundled: Nibble drives the Microsoft Edge WebView2
-  Runtime that Windows already provides, under Microsoft's terms.
-
-That is everything: Nibble's own source is MIT, and nothing else is bundled with it.
