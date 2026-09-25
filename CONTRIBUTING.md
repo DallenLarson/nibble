@@ -48,8 +48,14 @@ powershell -File tools/SmokeTest.ps1 -Exe dist\Nibble.exe -Profile scratch\smoke
 - `src/Nibble/Services/` — everything that talks to the world: `Store` (JSON profile),
   `Themes` (the theme shop's catalogue), `Pages` (the built-in pages and theme assets),
   `AdBlocker`, `Urls`, `Migrator`, `SingleInstance`, `BrowserRegistration`.
-- `src/Nibble/MainWindow.xaml(.cs)` — the shell, the biggest file; its sections are labelled
-  and the native hit-testing, popup placement and window-lifetime rules carry comments
+- `src/Nibble/MainWindow.xaml(.cs)` — the shell, and by far the biggest file. It is one
+  partial-free class in nineteen labelled sections; search for the banner comment
+  (`// =====`) and the name: `startup`, `tabs`, `navigation`, `page -> shell messages`,
+  `omnibox`, `shortcuts`, `popups`, `personalization`, `command palette`,
+  `command implementations`, `clear data and reset`, `toasts`, `native hit testing`,
+  `toolbar handlers`, `helpers`, `private windows`, `site permissions`,
+  `find in page (Ctrl+F) and print (Ctrl+P)`, `window placement memory`.
+  The native hit-testing, popup placement and window-lifetime rules carry comments
   explaining *why*, because each of them was a bug once.
 - `src/Nibble/Assets/` — the new tab and error pages, the fonts, and `Themes/<id>/`.
 

@@ -169,6 +169,10 @@
     border-color: #413668;
   }
   body.private .sub { color: #8b6ef0; }
+  /* The one line in a private window is a notice rather than a decoration, so it gets the
+     private colour and a size you can actually read from a normal viewing distance. */
+  body.private .tip { color: #6746c9; font-size: 11.5px; letter-spacing: .1em; }
+  body.dark.private .tip { color: #c4b2ff; }
 
   .hero { margin-top: clamp(28px, 9vh, 84px); text-align: center; }
 
@@ -406,7 +410,8 @@
     font-family: 'Silkscreen', monospace;
     font-size: 9.5px;
     letter-spacing: .16em;
-    color: var(--ink-3);
+    /* ink-3 is near-invisible over the horizon, and one of these lines is a privacy notice */
+    color: var(--ink-2);
     text-transform: uppercase;
     transition: opacity .4s ease;
   }
@@ -414,7 +419,7 @@
   .foot {
     bottom: 12px; left: 16px; right: 16px;
     display: flex; justify-content: space-between;
-    font-size: 10.5px; color: var(--ink-3);
+    font-size: 10.5px; color: var(--ink-2);
     pointer-events: none;
   }
   .foot span { pointer-events: auto; }
