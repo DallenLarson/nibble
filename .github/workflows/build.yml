@@ -7,6 +7,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Reading the repository is enough for a build; publishing a release needs write. Asking for
+# it here rather than changing the repository's default keeps every other workflow read-only.
+permissions:
+  contents: write
+
 jobs:
   windows:
     runs-on: windows-latest
