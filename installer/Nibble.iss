@@ -17,7 +17,7 @@
 ; =====================================================================
 
 #define AppName        "Nibble"
-#define AppVersion     "1.0.0"
+#define AppVersion     "1.0.1"
 #define AppPublisher   "Dallen Larson"
 #define AppUrl         "https://github.com/DallenLarson/nibble"
 #define AppExeName     "Nibble.exe"
@@ -84,10 +84,8 @@ Name: "{group}\Uninstall {#AppName}";      Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}";          Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Parameters: "--register-browser"; \
-  StatusMsg: "Adding Nibble to the browser list..."; Flags: runhidden waituntilterminated; Tasks: browser
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; \
-  Flags: nowait postinstall skipifsilent
+  Flags: nowait postinstall skipifsilent; Check: DotNet8DesktopInstalled
 ; only offered when the runtimes really are missing - see MissingDependencies below
 Filename: "https://dotnet.microsoft.com/download/dotnet/8.0"; \
   Description: "Download the Microsoft .NET 8 Desktop Runtime (required to run Nibble)"; \
@@ -96,10 +94,33 @@ Filename: "https://go.microsoft.com/fwlink/p/?LinkId=2124703"; \
   Description: "Download the Microsoft Edge WebView2 Runtime (required to run Nibble)"; \
   Flags: shellexec nowait postinstall skipifsilent; Check: NeedsWebView2Runtime
 
-[UninstallRun]
-; before the files go, so nothing in the registry points at a deleted folder
-Filename: "{app}\{#AppExeName}"; Parameters: "--unregister-browser"; \
-  RunOnceId: "UnregisterBrowser"; Flags: runhidden waituntilterminated
+; The browser entries Nibble.exe --register-browser writes, written here instead of by
+; launching the browser.
+;
+; This used to be [Run] with "waituntilterminated", which was a trap: on a machine where
+; Nibble.exe cannot start - no .NET 8 Desktop Runtime, or Smart App Control refusing an
+; unsigned binary - Setup waited for a process that never finished, and "runhidden" hid the
+; dialog that would have said why. Setup sat on "Adding Nibble to the browser list..."
+; forever. Registry work cannot hang, needs no engine, and uninstalls cleanly.
+[Registry]
+Root: HKCU; Subkey: "Software\Classes\NibbleHTML"; ValueType: string; ValueData: "Nibble HTML Document"; Flags: uninsdeletekey; Tasks: browser
+Root: HKCU; Subkey: "Software\Classes\NibbleHTML"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Nibble HTML Document"; Tasks: browser
+Root: HKCU; Subkey: "Software\Classes\NibbleHTML"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Tasks: browser
+Root: HKCU; Subkey: "Software\Classes\NibbleHTML\DefaultIcon"; ValueType: string; ValueData: "{app}\{#AppExeName},0"; Tasks: browser
+Root: HKCU; Subkey: "Software\Classes\NibbleHTML\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExeName}"" -- ""%1"""; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble"; ValueType: string; ValueData: "Nibble"; Flags: uninsdeletekey; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\DefaultIcon"; ValueType: string; ValueData: "{app}\{#AppExeName},0"; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExeName}"""; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "Nibble"; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "A tiny, tasty pixel-perfect browser that rides on the WebView2 engine Windows already ships."; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\Capabilities"; ValueType: string; ValueName: "ApplicationIcon"; ValueData: "{app}\{#AppExeName},0"; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\Capabilities"; ValueType: string; ValueName: "StartMenuInternet"; ValueData: "{#AppExeName}"; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\Capabilities\FileAssociations"; ValueType: string; ValueName: ".htm"; ValueData: "NibbleHTML"; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\Capabilities\FileAssociations"; ValueType: string; ValueName: ".html"; ValueData: "NibbleHTML"; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xhtml"; ValueData: "NibbleHTML"; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\Capabilities\URLAssociations"; ValueType: string; ValueName: "http"; ValueData: "NibbleHTML"; Tasks: browser
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\Nibble\Capabilities\URLAssociations"; ValueType: string; ValueName: "https"; ValueData: "NibbleHTML"; Tasks: browser
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Nibble"; ValueData: "Software\Clients\StartMenuInternet\Nibble\Capabilities"; Flags: uninsdeletevalue; Tasks: browser
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\pages"
@@ -177,7 +198,8 @@ begin
     DirExists(ExpandConstant('{commonpf}\Microsoft\EdgeWebView\Application'));
 end;
 
-// the two [Run] entries that offer the download pages ask these
+// the two [Run] entries that offer the download pages ask these, and the launch entry asks
+// for DotNet8DesktopInstalled directly
 function NeedsDotNetRuntime(): Boolean;
 begin
   Result := NeedsDotNet;

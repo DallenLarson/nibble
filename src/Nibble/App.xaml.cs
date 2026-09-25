@@ -26,7 +26,10 @@ public partial class App : Application
             .Any(a => a.Equals("--register-browser", StringComparison.OrdinalIgnoreCase)))
         {
             BrowserRegistration.Register(Environment.ProcessPath);
-            Shutdown();
+            // Exit rather than Shutdown: an installer runs this with a timeout waiting on the
+            // process handle, and every registry write above is already committed. Anything
+            // that could keep a WPF app alive for another second is a liability here.
+            Environment.Exit(0);
             return;
         }
 
@@ -35,7 +38,7 @@ public partial class App : Application
             .Any(a => a.Equals("--unregister-browser", StringComparison.OrdinalIgnoreCase)))
         {
             BrowserRegistration.Unregister();
-            Shutdown();
+            Environment.Exit(0);
             return;
         }
 

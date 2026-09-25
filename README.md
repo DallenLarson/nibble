@@ -38,7 +38,7 @@ drift away from the app.
 ## Install
 
 **[Download the installer](https://github.com/DallenLarson/nibble/releases/latest)** —
-`Nibble-1.0.0-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
+`Nibble-1.0.1-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
 would rather not install to.)
 
 It is a per-user Inno Setup installer — no administrator prompt, files in
@@ -51,7 +51,7 @@ Build the browser and the installer in one command:
 ```
 powershell -File tools/package.ps1
   -> dist/Nibble.exe              2.2 MB, the whole browser
-  -> dist/Nibble-1.0.0-Setup.exe  the installer
+  -> dist/Nibble-1.0.1-Setup.exe  the installer
 ```
 
 That needs the .NET SDK, and [Inno Setup 6](https://jrsoftware.org/isdl.php) for the installer
@@ -98,8 +98,11 @@ per-user browser entries — `HKCU\Software\Classes\NibbleHTML`, the Start-menu 
 client capabilities, `http`/`https` URL associations — and then opens the Windows page
 where you pick a default. Since Windows 10 no app can make itself the default; only the
 user can, in Settings. All of it lands under `HKCU`: no admin rights, nothing
-machine-wide. `--unregister-browser` takes every one of those entries back out, and the
-uninstaller calls it before the files go — so nothing is left pointing at a deleted folder.
+machine-wide. The installer writes those entries itself (and `--unregister-browser` takes them
+back out, for a portable copy); uninstalling removes them through `[Registry]`
+`uninsdeletekey` flags, so nothing is left pointing at a deleted folder. Registration used to
+be done by launching the browser and waiting for it, which is what made 1.0.0 hang on a
+machine where the browser could not start — see the changelog.
 
 ## The window
 
@@ -582,7 +585,7 @@ Windows-only, and needed for anything that touches the shell:
 
 ```
 powershell -File tools/SmokeTest.ps1   -Exe dist\Nibble.exe -Profile scratch\smoke-profile
-powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.0.0-Setup.exe
+powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.0.1-Setup.exe
 ```
 
 `InstallerTest.ps1` installs silently, checks every trace the installer should leave, runs the

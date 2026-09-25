@@ -1,7 +1,7 @@
 # Installs Nibble silently, checks every trace it is supposed to leave, runs it, then
 # uninstalls it silently and checks the traces are gone - and that the profile is not.
 #
-#   powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.0.0-Setup.exe
+#   powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.0.1-Setup.exe
 param(
     [Parameter(Mandatory = $true)][string]$Setup
 )
@@ -42,6 +42,11 @@ Check "registered as a browser" (
     (Test-Path "HKCU:\Software\Clients\StartMenuInternet\Nibble\Capabilities") -and
     ((Get-ItemProperty "HKCU:\Software\RegisteredApplications" -ErrorAction SilentlyContinue).Nibble -ne $null))
 Check "profile untouched by installing" ((Test-Path (Join-Path $profileDir "settings.json")) -eq $profileBefore)
+
+# What 1.0.1 fixes: Setup used to run Nibble.exe and wait for it to exit, which never happened
+# on a machine where the browser cannot start - that is the "stuck on Adding Nibble to the
+# browser list" bug. Registration is plain registry work now, so nothing should be running.
+Check "the installer did not launch the browser" (@(Get-Process Nibble -ErrorAction SilentlyContinue).Count -eq 0)
 
 "--- running the installed browser ---"
 $app = Start-Process -FilePath (Join-Path $installDir "Nibble.exe") -PassThru
@@ -85,7 +90,7 @@ if ($blockedByPolicy) {
         Start-Process -FilePath $installedExe -ArgumentList "--unregister-browser" -Wait
     }
     Start-Sleep -Seconds 2
-    Check "browser registration is gone (the app's own [UninstallRun] step)" (
+    Check "browser registration can still be taken out (the app's own flag)" (
         (-not (Test-Path "HKCU:\Software\Clients\StartMenuInternet\Nibble")) -and
         ((Get-ItemProperty "HKCU:\Software\RegisteredApplications" -ErrorAction SilentlyContinue).Nibble -eq $null))
     # leave the machine clean: move the install aside instead of leaving a phantom

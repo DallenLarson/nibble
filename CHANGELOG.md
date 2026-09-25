@@ -1,5 +1,31 @@
 # Nibble changelog
 
+## 1.0.1 — the installer can no longer sit and wait
+
+**The bug:** on a machine where `Nibble.exe` cannot start — no .NET 8 Desktop Runtime, or
+Smart App Control refusing an unsigned binary — Setup hung on *"Adding Nibble to the browser
+list…"* and never came back. That step ran `Nibble.exe --register-browser` with Inno's
+`waituntilterminated`, so Setup was waiting on a process that would never finish, and
+`runhidden` hid the dialog that would have said why.
+
+**The fix:** the browser entries are now written as plain `[Registry]` work by the installer
+itself. Nothing in Setup launches the browser any more, so no missing runtime or policy can
+stall an install. Registry work cannot hang, needs no engine, and uninstalls cleanly — the
+same keys, with `uninsdeletekey` / `uninsdeletevalue` doing at uninstall what
+`--unregister-browser` used to be asked to do, which also removes a second place the
+uninstaller could have waited forever.
+
+Also in this release:
+
+- **The version is shown in full.** The menu and the page footer read `Nibble 1.0.1`, not
+  `Nibble 1.0` — a patch release nobody can identify is a bug report nobody can place.
+- **"Launch Nibble" is only offered when it can run.** The finish-page checkbox is hidden
+  when the .NET 8 Desktop Runtime is missing, instead of opening a browser that cannot start.
+- `--register-browser` and `--unregister-browser` now exit the process immediately
+  (`Environment.Exit`) rather than going through a WPF shutdown, so an installer or script
+  calling them never waits on window teardown. Both flags still work, which is what a portable
+  copy of Nibble uses.
+
 ## 1.0.0 — first release
 
 The first version worth handing to somebody else. Everything below is in the shipping

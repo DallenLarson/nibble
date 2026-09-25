@@ -1105,7 +1105,11 @@ public partial class MainWindow : Window
     }
 
     private string Version =>
-        typeof(MainWindow).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}" : "1.0";
+        // Patch versions have to show: "Nibble 1.0" for both 1.0.0 and 1.0.1 makes a bug
+        // report impossible to place.
+        typeof(MainWindow).Assembly.GetName().Version is { } v
+            ? v.Build > 0 ? $"{v.Major}.{v.Minor}.{v.Build}" : $"{v.Major}.{v.Minor}"
+            : "1.0";
 
     private void SendInit(ZTab tab)
     {
