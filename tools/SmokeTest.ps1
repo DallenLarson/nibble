@@ -20,13 +20,33 @@ function Step([string]$label, [string]$result) {
     "{0}  {1}  {2}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $label, $result.Trim()
 }
 function Click([int]$id, [string]$name) {
-    (& powershell -NoProfile -ExecutionPolicy Bypass -File $uia -Mode click -ProcessId $id -Name $name) -join " "
+    # A popup can take a moment to appear, especially on a busy machine; being early is not a
+    # failure, so look again rather than recording one.
+    for ($attempt = 1; $attempt -le 6; $attempt++) {
+        $result = (& powershell -NoProfile -ExecutionPolicy Bypass -File $uia -Mode click -ProcessId $id -Name $name) -join " "
+        if ($result -match "CLICKED|SET|OK") { return $result }
+        Start-Sleep -Milliseconds 400
+    }
+    return "NOT-FOUND: $name"
 }
 function ClickLike([int]$id, [string]$pattern) {
-    (& powershell -NoProfile -ExecutionPolicy Bypass -File $uia -Mode click -ProcessId $id -Name $pattern -Match like) -join " "
+    for ($attempt = 1; $attempt -le 6; $attempt++) {
+        $result = (& powershell -NoProfile -ExecutionPolicy Bypass -File $uia -Mode click -ProcessId $id -Name $pattern -Match like) -join " "
+        if ($result -match "CLICKED|SET|OK") { return $result }
+        Start-Sleep -Milliseconds 400
+    }
+    return "NOT-FOUND: $pattern"
 }
 function Texts([int]$id) {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $uia -Mode texts -ProcessId $id
+}
+function WaitForText([int]$id, [string]$pattern, [int]$seconds = 6) {
+    # Same idea for reading a popup: poll for the text instead of sampling once and hoping.
+    for ($attempt = 0; $attempt -lt ($seconds * 2); $attempt++) {
+        if (((Texts $id) -join " ") -match $pattern) { return $true }
+        Start-Sleep -Milliseconds 500
+    }
+    return $false
 }
 function Grab([int]$id, [string]$file, [string]$title) {
     $arguments = @("-ProcessId", $id, "-Out", $file)
@@ -65,14 +85,12 @@ Grab $id "$Shots-3-newtab.png" $null
 # ---- chrome surfaces ----
 Step "menu opens"        (Click $id "Menu")
 Start-Sleep -Milliseconds 900
-$menu = Texts $id
-Step "menu lists the theme shop" $(if (($menu -join " ") -match "Theme shop") { "OK" } else { "missing" })
-Step "menu lists the version"    $(if (($menu -join " ") -match "Nibble \d+\.\d+") { "OK" } else { "missing" })
+Step "menu lists the theme shop" $(if (WaitForText $id "Theme shop") { "OK" } else { "missing" })
+Step "menu lists the version"    $(if (WaitForText $id "Nibble \d+\.\d+") { "OK" } else { "missing" })
 Grab $id "$Shots-4-menu.png" $null
 Step "theme shop opens"  (ClickLike $id "Theme shop*")
 Start-Sleep -Seconds 2
-$shop = Texts $id
-Step "theme shop lists both themes" $(if ((($shop -join " ") -match "Grass Block") -and (($shop -join " ") -match "Deep Water")) { "OK" } else { "missing" })
+Step "theme shop lists both themes" $(if ((WaitForText $id "Grass Block") -and (WaitForText $id "Deep Water")) { "OK" } else { "missing" })
 Grab $id "$Shots-5-shop.png" "Theme shop"
 Step "apply a theme"     (Click $id "Apply Grass Block")
 Start-Sleep -Seconds 3

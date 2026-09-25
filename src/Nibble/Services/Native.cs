@@ -130,7 +130,17 @@ public static class Native
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
 
-    /// <summary>Expands the window to fill its monitor, over the taskbar.</summary>
+    /// <summary>
+    /// Expands the window to fill its monitor, over the taskbar.
+    ///
+    /// Sizing alone is not enough: the taskbar is an always-on-top window, so a window that is
+    /// merely the size of the monitor still has its bottom edge underneath it. Measured on a
+    /// 1920x1080 screen with the window at 0,0 1920x1080: WindowFromPoint at 960,1050 and
+    /// 960,1075 returned MSTaskSwWClass, the taskbar, not the page - the bottom 60 px of the
+    /// screen belonged to Windows. So the window also goes topmost, and the shell is told it is
+    /// full-screen (MarkFullscreenWindow), which is what makes Explorer take the taskbar away
+    /// instead of leaving it behind the page.
+    /// </summary>
     public static bool CoverMonitor(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero) return false;
@@ -142,16 +152,73 @@ public static class Native
             var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
             if (!GetMonitorInfo(monitor, ref info)) return false;
 
+            // SWP_NOZORDER: the window's `Topmost` property owns the z-order (WPF rewrites the
+            // extended style whenever it syncs the window, which quietly undoes a poke from
+            // here - measured: the topmost bit read back false a moment after setting it).
             SetWindowPos(hwnd, IntPtr.Zero,
                 info.Monitor.Left, info.Monitor.Top,
                 info.Monitor.Right - info.Monitor.Left,
                 info.Monitor.Bottom - info.Monitor.Top,
-                0x0040 /* SWP_SHOWWINDOW */);
+                0x0040 /* SWP_SHOWWINDOW */ | 0x0004 /* SWP_NOZORDER */);
+            TellShellFullscreen(hwnd, true);
             return true;
         }
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>Undoes <see cref="CoverMonitor"/>: not full-screen, and not above everything.</summary>
+    public static void LeaveFullscreen(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return;
+        try
+        {
+            TellShellFullscreen(hwnd, false);
+        }
+        catch
+        {
+            // Cosmetic: the window still goes back to its size.
+        }
+    }
+
+    // ITaskbarList2, for the one call that tells Explorer a window is full-screen. Declared by
+    // hand because it is not worth a dependency for a single method; the five methods before it
+    // are ITaskbarList's, in vtable order.
+    [ComImport]
+    [Guid("56FDF344-FD6D-11d0-958A-006097C9A090")]
+    [ClassInterface(ClassInterfaceType.None)]
+    private class TaskbarList
+    {
+    }
+
+    [ComImport]
+    [Guid("602D4995-B13A-429b-A66E-1935E44F4317")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface ITaskbarList2
+    {
+        void HrInit();
+        void AddTab(IntPtr hwnd);
+        void DeleteTab(IntPtr hwnd);
+        void ActivateTab(IntPtr hwnd);
+        void SetActiveAlt(IntPtr hwnd);
+        void MarkFullscreenWindow(IntPtr hwnd, [MarshalAs(UnmanagedType.Bool)] bool fullscreen);
+    }
+
+    private static ITaskbarList2? _taskbar;
+
+    private static void TellShellFullscreen(IntPtr hwnd, bool fullscreen)
+    {
+        try
+        {
+            _taskbar ??= (ITaskbarList2)new TaskbarList();
+            _taskbar.HrInit();
+            _taskbar.MarkFullscreenWindow(hwnd, fullscreen);
+        }
+        catch
+        {
+            // Without it the taskbar stays where it is; being topmost still keeps the page whole.
         }
     }
 }

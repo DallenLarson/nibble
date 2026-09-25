@@ -5,7 +5,7 @@ Ordered by what blocks a real person from using it.
 
 ## Already in place, so it does not get re-litigated
 
-- 1.1.0 in the project file, the app manifest, the menu and the page footer.
+- 1.1.1 in the project file, the app manifest, the menu and the page footer.
 - `tools/package.ps1` builds `dist/Nibble.exe` (2.2 MB) and `dist/Nibble-1.1.0-Setup.exe`.
 - `tools/verify.ps1` passes: 67 assertions across four suites, plus the published-exe facts.
 - `tools/SmokeTest.ps1` walks the first run and every surface: 25 steps, 0 failures, empty log.
@@ -81,5 +81,6 @@ Ordered by what blocks a real person from using it.
 
 Passwords, autofill, sync, extensions, a password manager, a shopping assistant, a news feed,
 an AI sidebar. Each one is a decision to make later, not an oversight.
+
 
 

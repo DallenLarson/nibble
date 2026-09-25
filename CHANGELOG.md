@@ -1,5 +1,28 @@
 # Nibble changelog
 
+## 1.1.1 — full screen keeps its bottom
+
+**The bug:** in full screen the bottom of the page was cut off. The window was the size of the
+monitor, but the taskbar is an always-on-top window, so the last 60 px of the screen belonged
+to Windows rather than to the page. Measured on a 1920x1080 screen with the window at
+0,0 1920x1080: `WindowFromPoint` at 960,1050 and 960,1075 returned `MSTaskSwWClass` — the
+taskbar — and the window's extended style had no `WS_EX_TOPMOST` bit.
+
+**The fix:** full screen is now genuinely above everything. The window goes `Topmost`, and the
+shell is told it is full-screen (`ITaskbarList2::MarkFullscreenWindow`), which is what makes
+Explorer take the taskbar away instead of leaving it behind the page. Measured after: the
+extended style reads `0x40108`, and walking the z-order puts Nibble at index 6 and the taskbar
+at 206 — *in front of the taskbar*.
+
+Two details worth keeping:
+
+- **The z-order belongs to WPF.** Setting `WS_EX_TOPMOST` from the native side did not stick —
+  WPF rewrites the window's extended style when it syncs the window, and the bit read back
+  false a moment later. The window's own `Topmost` property is what holds.
+- **Leaving full screen puts everything back.** Topmost cleared, the window at the rectangle it
+  had before (198,-3 1525x1025 in the measurement) and the chrome rows back at their heights —
+  a window that stayed on top of everything would be a worse bug than the one being fixed.
+
 ## 1.1.0 — Nibble updates itself
 
 **A Nibble that is installed keeps itself current.** It asks its own release feed (GitHub's

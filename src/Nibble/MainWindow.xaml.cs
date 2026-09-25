@@ -1557,11 +1557,21 @@ public partial class MainWindow : Window
             _wasMaximized = WindowState == WindowState.Maximized;
             _windowedBounds = new Rect(Left, Top, Width, Height);
 
-            // Fill the monitor itself (taskbar included); fall back to maximizing.
+            // Full screen has to be above the taskbar, and the taskbar is always-on-top: a
+            // window that is merely the size of the monitor keeps its bottom edge underneath it
+            // (measured: WindowFromPoint at 960,1050 returned MSTaskSwWClass). Topmost is what
+            // puts the page above it, and the shell is told as well so Explorer takes the
+            // taskbar away rather than leaving it peeking.
+            Topmost = true;
             WindowState = WindowState.Normal;
             if (!Native.CoverMonitor(hwnd)) WindowState = WindowState.Maximized;
             return;
         }
+
+        // Off the top of the z-order and out of full-screen as far as the shell is concerned,
+        // before the window is put back where it was.
+        Topmost = false;
+        Native.LeaveFullscreen(hwnd);
 
         if (_wasMaximized)
         {

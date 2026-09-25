@@ -38,7 +38,7 @@ drift away from the app.
 ## Install
 
 **[Download the installer](https://github.com/DallenLarson/nibble/releases/latest)** —
-`Nibble-1.1.0-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
+`Nibble-1.1.1-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
 would rather not install to.)
 
 It is a per-user Inno Setup installer — no administrator prompt, files in
@@ -51,7 +51,7 @@ Build the browser and the installer in one command:
 ```
 powershell -File tools/package.ps1
   -> dist/Nibble.exe              2.2 MB, the whole browser
-  -> dist/Nibble-1.1.0-Setup.exe  the installer
+  -> dist/Nibble-1.1.1-Setup.exe  the installer
 ```
 
 That needs the .NET SDK, and [Inno Setup 6](https://jrsoftware.org/isdl.php) for the installer
@@ -160,6 +160,11 @@ Everything lives in one header row, level with the tabs:
 - **Full screen (F11) just is full screen**: the chrome slides away, the window fills the
   whole monitor including the taskbar, and nothing else appears — no badge, no toast.
   F11 or Escape brings the chrome back at the exact size and position you left.
+  *Including the taskbar* is the part that needs saying twice: the taskbar is an
+  always-on-top window, so a window that is merely the size of the monitor keeps its bottom
+  edge under 60 px of Windows. Full screen therefore puts the window above everything and
+  tells the shell it is full-screen, which is what makes Explorer take the taskbar away; the
+  measurement is in the changelog for 1.1.1.
 - **Menus and popups dismiss like you'd expect**: click anywhere outside them — on the
   page (including inside embedded frames), on the toolbar, on a tab — scroll the page,
   press Escape, or click the button that opened it again.
@@ -624,7 +629,7 @@ Windows-only, and needed for anything that touches the shell:
 
 ```
 powershell -File tools/SmokeTest.ps1   -Exe dist\Nibble.exe -Profile scratch\smoke-profile
-powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.1.0-Setup.exe
+powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.1.1-Setup.exe
 powershell -File tools/UpdateTest.ps1            # builds a 9.9.9 "release" and updates into it
 ```
 
@@ -642,5 +647,6 @@ not** — 16 checks. On a machine with Smart App Control on, the uninstaller its
 
 Because this machine blocks freshly built DLLs under Application Control, the .NET suites have
 to be published as single-file executables to run.
+
 
 
