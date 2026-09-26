@@ -410,6 +410,15 @@ destinations. That needs a VPN, and Nibble does not ship one.
   text plainly on the page when started with `SuppressDefaultFindDialog`, so the bar counts
   visible text and jumps with the page's own `window.find`. That logic carries 16 assertions
   in `tools/FindLogicTest.js`.
+- **A popup also has to take the keyboard, and that is the part that was wrong.** The engine's
+  surface is a child window of the shell and takes the keyboard straight back whenever its
+  parent asks for it, so while a page has the keyboard a popup cannot be focused at all: the
+  request is refused without an error and the letters go into the page. Ctrl+F and Ctrl+K both
+  opened and then did nothing on any page you had clicked into. Nibble parks the keyboard on a
+  small element inside the shell and hands it to the popup from there — the same kind of route
+  the address bar always took, and why Ctrl+L kept working. Measured with real keystrokes and
+  the UI Automation focused element against a page served over http: **19 of 19 checks** in
+  `tools/FindProbe.ps1`, 8 of which fail on the build before the fix.
 - **Print** (Ctrl+P, or the menu) opens the engine's print dialog.
 - **Site permissions are refused by default.** Pages are never quietly given the camera,
   microphone, location or notifications: a request is denied and a toast says who asked for
@@ -698,6 +707,7 @@ Windows-only, and needed for anything that touches the shell:
 powershell -File tools/SmokeTest.ps1   -Exe dist\Nibble.exe -Profile scratch\smoke-profile
 powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-1.1.2-Setup.exe
 powershell -File tools/UpdateTest.ps1            # builds a 9.9.9 "release" and updates into it
+powershell -File tools/FindProbe.ps1   -Exe src\Nibble\bin\Release\net8.0-windows\win-x64\Nibble.exe
 ```
 
 `UpdateTest.ps1` is the one that proves the updater end to end without publishing anything: it

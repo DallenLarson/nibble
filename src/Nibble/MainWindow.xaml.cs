@@ -2860,12 +2860,21 @@ public partial class MainWindow : Window
         if (PalettePopup.Child is FrameworkElement card) Juice.PopIn(card, 0.04, 8, 320);
 
         // A popup's content lives in its own visual tree, so focus only sticks once the
-        // popup has had a layout pass - otherwise typing lands in the address bar.
+        // popup has had a layout pass - otherwise typing lands in the address bar. When a
+        // page holds the keyboard the shell has to take it back first, or the command bar
+        // opens with the typing still going into the page.
         Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
         {
-            PaletteQuery.Focus();
-            Keyboard.Focus(PaletteQuery);
-            PaletteQuery.SelectAll();
+            LeavePage();
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                PaletteQuery.Focus();
+                Keyboard.Focus(PaletteQuery);
+                PaletteQuery.SelectAll();
+                // Same as find: the hop back through the shell can leave the address bar's
+                // recent-sites list hanging open behind the command bar.
+                HideSuggestions();
+            }));
         }));
     }
 
@@ -4292,17 +4301,69 @@ public partial class MainWindow : Window
     //  find in page (Ctrl+F) and print (Ctrl+P)
     // =====================================================================
 
+    /// <summary>
+    /// Hands the keyboard from the page back to the shell.
+    ///
+    /// The engine's surface is a child window of the shell and it takes the keyboard straight
+    /// back whenever the shell asks for it, so a popup can never be focused while a page has
+    /// the keyboard: asking for the caret is refused in silence and the typing goes into the
+    /// page. Measured on wikipedia.org: Ctrl+F opened the find bar, the word typed after it
+    /// landed in the page, and the bar stayed empty reporting nothing.
+    ///
+    /// A WPF element in the shell *can* take the keyboard away from the page - that is the
+    /// route the address bar has always taken, which is why Ctrl+L kept working - so the
+    /// keyboard is parked on the sink first and the popup takes it from there. Parking it by
+    /// asking the page surface to move focus on instead looked equivalent and was not: the
+    /// engine's host sometimes moved the keyboard further into the page, onto the page's own
+    /// first link, which left the bar open with the typing still going into the page. Measured
+    /// on a real page, one run in four. The sink is a fixed element, so there is nothing to be
+    /// unlucky about.
+    /// </summary>
+    private void LeavePage()
+    {
+        // Something in the shell already has the keyboard; there is nothing to take back.
+        if (Keyboard.FocusedElement is not null) return;
+
+        try
+        {
+            Keyboard.Focus(KeyboardSink);
+            if (!KeyboardSink.IsKeyboardFocused) Native.TakeKeyboard(this);
+        }
+        catch
+        {
+            Native.TakeKeyboard(this);
+        }
+    }
+
     private void ShowFindBar()
     {
         if (_active?.Core is null) return;
         HideSuggestions();
         PositionFindBar();
         FindPopup.IsOpen = true;
-        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => Mouse.Capture(null)));
-        FindBox.Focus();
-        FindBox.SelectAll();
         Juice.PopIn(FindBar, 0.04, -6, 220);
         UpdateFindCount();
+
+        // A popup's content lives in its own visual tree, so asking for the caret in the same
+        // breath as opening it does nothing at all: the engine's own window still has the
+        // keyboard, every letter typed went into the page, and the find bar sat there empty
+        // reporting nothing. Wait for the popup's layout pass, exactly like the command bar.
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+        {
+            LeavePage();
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                Mouse.Capture(null);
+                FindBox.Focus();
+                Keyboard.Focus(FindBox);
+                FindBox.SelectAll();
+                // Handing the keyboard back to the shell can land it on the address bar on the
+                // way, and the address bar opens its list of recent sites when it is focused.
+                // That list belongs to the address bar, not to a find the person is doing, so
+                // it goes away.
+                HideSuggestions();
+            }));
+        }));
     }
 
     private void HideFindBar()

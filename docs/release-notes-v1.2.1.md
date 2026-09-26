@@ -1,5 +1,8 @@
 **Ctrl+T and then typing is one motion: the new tab hands the address bar the caret.**
 
+**Ctrl+F and Ctrl+K take the keyboard on a real website, so finding text and running a
+command work on the pages you actually visit.**
+
 ## The caret is already where you were going to type
 
 A new tab used to open with the keyboard on the page, so the first letter you typed went
@@ -24,6 +27,24 @@ element and the address bar's own value: **16 of 16 checks** in `tools/NewTabFoc
 Two of those checks check the check itself — typing does open the recent-sites list, and
 clicking into the page does keep the caret there — so a pass means a keystroke really landed,
 not that a flag was set.
+
+## Find and the command bar now take the keyboard on a real page
+
+On any website you had clicked into, Ctrl+F and Ctrl+K opened and then did nothing. Every letter
+typed afterwards went into the page instead: the find bar sat there empty reporting nothing, and
+the command bar sat behind an empty query. Ctrl+L worked the whole time, and that was the clue.
+
+The engine's page surface is a child window of the shell, and while it holds the keyboard WPF
+cannot move focus into a popup at all — the request is refused without an error and `Focus()`
+still returns true, so nothing looked wrong from the inside. Nibble now parks the keyboard on a
+small element inside the shell and hands it to the popup from there, which is what actually
+gives the page's keyboard up. The same route covers the command bar, which had the same hole
+for exactly the same reason.
+
+Measured with real keystrokes and the UI Automation focused element against a page served over
+http: **19 of 19 checks** in `tools/FindProbe.ps1`, which types a word, walks the matches forward
+and back, checks a word that is not there, and checks that Esc hands the keyboard back to the
+page. On the build immediately before this change, **8 of those 19 fail**.
 
 ## Install
 

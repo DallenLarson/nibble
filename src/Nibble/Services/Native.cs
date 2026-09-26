@@ -243,8 +243,33 @@ public static class Native
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetFocus(IntPtr hwnd);
+
     /// <summary>The pointer in physical screen pixels - the one coordinate system every window agrees on.</summary>
     public static Point32 Cursor() => GetCursorPos(out var point) ? point : default;
+
+    /// <summary>
+    /// Puts the keyboard on the shell window itself rather than on a child window inside it.
+    ///
+    /// This is the fallback for a window with no page surface to move focus off. It is not
+    /// enough on its own: measured on a real page, SetFocus on the shell left the keyboard
+    /// exactly where it was, because the engine's child window takes it back from its parent
+    /// as soon as the parent is asked for it. Use <c>LeavePage</c>, which moves focus the way
+    /// Tab does and is the thing that actually works.
+    /// </summary>
+    public static void TakeKeyboard(Window window)
+    {
+        try
+        {
+            var hwnd = Handle(window);
+            if (hwnd != IntPtr.Zero) SetFocus(hwnd);
+        }
+        catch
+        {
+            // Focus is a nicety; never take the window down over it.
+        }
+    }
 
     public static int Distance(Point32 a, Point32 b)
     {

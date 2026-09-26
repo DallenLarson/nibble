@@ -1,6 +1,6 @@
 # Nibble changelog
 
-## 1.2.1 — the caret is already where you were going to type
+## 1.2.1 — the caret goes where you asked for it
 
 **A new tab hands the address bar the caret, so Ctrl+T and typing is one motion.** A new tab
 used to open with the keyboard on the page: the first letter went nowhere until you reached
@@ -16,6 +16,17 @@ bar on screen, and a page you have clicked into all keep the keyboard exactly wh
 it. Measured with real key presses and the UI Automation focused element — **16 of 16 checks**
 in `tools/NewTabFocusProbe.ps1`, two of which check the check itself: typing does open the
 recent-sites list, and clicking into the page does keep the caret there.
+
+**Ctrl+F and Ctrl+K take the keyboard on a real website.** On any page you had clicked into,
+both of them opened and then did nothing at all: every letter typed after them went into the
+page, leaving the find bar empty reporting nothing and the command bar empty behind it. Ctrl+L
+worked the whole time, which was the clue — the engine's surface is a child window of the
+shell, and while it holds the keyboard WPF cannot move focus into a popup at all. Asking is
+refused in silence, and `Focus()` returns true while it happens, so nothing looked wrong. Nibble
+now parks the keyboard on a small element inside the shell and lets the popup take it from
+there, which is what actually gives the page's keyboard up. Measured with real keystrokes and
+the UI Automation focused element against a page served over http: **19 of 19 checks** in
+`tools/FindProbe.ps1`, and **8 of those 19 fail** on the build immediately before this change.
 
 ## 1.2.0 — tabs that go where you put them, links that open behind you, and sign-in that works
 

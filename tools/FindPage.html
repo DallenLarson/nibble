@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Find probe page</title>
+<style>
+  body { font: 16px/1.6 system-ui, sans-serif; margin: 40px; max-width: 720px; }
+  h1 { font-size: 24px; }
+  p { margin: 18px 0; }
+  .spacer { height: 400px; }
+</style>
+</head>
+<body>
+  <!-- Exactly six case-insensitive matches for "pixel" in the text below: one in the heading,
+       four in the paragraph, one in the list. Counted from this file with
+       tools/FindProbe.ps1's own numbers, not by eye. -->
+  <h1>PIXEL art on a served page</h1>
+
+  <p>This page exists so a test can prove that finding text works while the page itself has
+     the keyboard, which is the state every real website leaves the browser in. The word
+     pixel shows up here, then again right here: pixel, and twice more in the next sentence,
+     because a pixel is a pixel.</p>
+
+  <ul>
+    <li>a pixel on its own line</li>
+    <li>an unrelated line</li>
+  </ul>
+
+  <!-- Where the find bar lands: its card is 400 px wide, 18 px in from the right edge of the
+       window and 9 px down from the top of the page. This marker sits well inside that card,
+       with room to spare at every edge so a scrollbar's width cannot decide the answer.
+       Magenta on purpose - a test reads screen pixels and can then tell whether the bar really
+       painted over the page here, which is a different question from whether the bar opened
+       and took the keyboard. -->
+  <div id="under-the-find-bar"
+       style="position: fixed; right: 30px; top: 14px; width: 350px; height: 30px; background: #ff00ff"></div>
+
+  <div class="spacer"></div>
+
+  <p id="tail">The bottom of the page, far below the fold, so a jump to a match has somewhere
+     to scroll to. Nothing down here matches the search term.</p>
+</body>
+</html>

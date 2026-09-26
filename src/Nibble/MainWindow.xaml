@@ -22,6 +22,16 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <!-- ================= the keyboard sink =================
+             Where the shell parks the keyboard when it has to take it off the page. A popup
+             cannot be focused while the engine's own window holds the keyboard, and the engine
+             hands it back if the window only asks politely - so the keyboard moves here first,
+             and the popup takes it from a shell element, which always works. Zero sized and
+             invisible: it is a place to stand, not something to look at. -->
+        <Border x:Name="KeyboardSink" Grid.Row="0" Grid.RowSpan="4" Width="0" Height="0"
+                Opacity="0" IsHitTestVisible="False" Focusable="True" FocusVisualStyle="{x:Null}"
+                HorizontalAlignment="Left" VerticalAlignment="Top" />
+
         <!-- ================= header: tabs + window controls ================= -->
         <Grid x:Name="DragRegion" Grid.Row="0" Background="{DynamicResource ChromeBg}">
             <Grid.ColumnDefinitions>
