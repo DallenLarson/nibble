@@ -58,12 +58,37 @@ public partial class MainWindow : Window
     private Rect? _windowedBounds;
     private bool _wasMaximized;
 
+    // Tab dragging. The pointer is followed through the window's own message hook rather
+    // than WPF mouse events, because a drag that leaves the tab strip passes over the
+    // engine's child window, where WPF stops hearing about it.
+    private HwndSource? _source;
+    private ZTab? _dragTab;
+    private Native.Point32 _dragFrom;
+    private bool _dragging;
+    private bool _dragDetach;
+    private Window? _dragGhost;
+    private double _dragGrabX;
+    private double _dragGrabY;
+    private DropPlacement? _dropAt;
+
+    private sealed record DropPlacement(Native.Point32 Cursor, double OffsetX, double OffsetY);
+
     /// <summary>
     /// A private window: the engine runs an in-private (off-the-record) profile for every
     /// tab in it, nothing is written to the profile on disk, and nothing that happens here
     /// reaches history, session restore, quick tiles or the address-bar suggestions.
     /// </summary>
     private readonly bool _private;
+
+    /// <summary>
+    /// Whether this window picks up the saved session when it starts. Only the first window of
+    /// a launch does: a window opened later - Ctrl+N, a link asked for its own window, a tab
+    /// dragged out - starts with what it was opened for, not with every tab from last time.
+    /// </summary>
+    private readonly bool _restoreSession;
+
+    /// <summary>The page this window was opened for, if it was opened for one.</summary>
+    private readonly string? _startUrl;
     private bool _findStarted;
     private string _findTerm = string.Empty;
     private int _findCount;
@@ -87,11 +112,13 @@ public partial class MainWindow : Window
         public DispatcherTimer? Timer { get; set; }
     }
 
-    public MainWindow(bool privateWindow = false)
+    public MainWindow(bool privateWindow = false, bool restoreSession = true, string? startUrl = null)
     {
         InitializeComponent();
         DataContext = this;
         _private = privateWindow;
+        _restoreSession = restoreSession;
+        _startUrl = string.IsNullOrWhiteSpace(startUrl) ? null : startUrl;
         _pageClickProc = OnPageWindowMessage;
 
         if (_private)
@@ -101,6 +128,12 @@ public partial class MainWindow : Window
         }
 
         RestorePlacement();
+
+        SourceInitialized += (_, _) =>
+        {
+            _source = PresentationSource.FromVisual(this) as HwndSource;
+            _source?.AddHook(OnWindowMessage);
+        };
 
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -142,6 +175,7 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ApplyDropPlacement();
         Store.LoadAll();
         AdBlocker.Enabled = App.Settings.Blocker;
         Pages.Ensure();
@@ -250,7 +284,7 @@ public partial class MainWindow : Window
     private void RestoreOrStartFresh()
     {
         // A private window always starts clean: no restored session, no leftover tabs.
-        var session = App.Settings.RestoreSession && !_private ? Store.LoadSession() : null;
+        var session = App.Settings.RestoreSession && _restoreSession && !_private ? Store.LoadSession() : null;
         var urls = session?.Urls
             .Where(u => !string.IsNullOrWhiteSpace(u) && !u.Contains(Pages.Host, StringComparison.OrdinalIgnoreCase))
             .Take(12)
@@ -258,27 +292,70 @@ public partial class MainWindow : Window
 
         if (urls.Count == 0)
         {
-            NewTab(Urls.Home, true);
+            // A window opened for a page starts on that page and nothing else; the rest start
+            // on the new tab page.
+            NewTab(_startUrl ?? Urls.Home, true);
             return;
         }
 
         var index = Math.Clamp(session!.Active, 0, urls.Count - 1);
         for (var i = 0; i < urls.Count; i++) NewTab(urls[i], i == index);
+
+        // Launched with a link while a session was restored: the link joins the session.
+        if (_startUrl is not null) NewTab(_startUrl, true);
+    }
+
+    /// <summary>This window's tabs as session entries, plus which of them is the active one.</summary>
+    private (List<string> Urls, int Active) SessionSnapshot()
+    {
+        var urls = new List<string>();
+        var active = 0;
+
+        foreach (var tab in Tabs)
+        {
+            if (tab.IsBroken) continue;
+            var url = tab.IsNewTab ? Urls.Home : tab.Url;
+            if (url.Contains(Pages.Host, StringComparison.OrdinalIgnoreCase)) continue;
+            if (ReferenceEquals(tab, _active)) active = urls.Count;
+            urls.Add(url);
+        }
+
+        return (urls, active);
     }
 
     private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        _source?.RemoveHook(OnWindowMessage);
+        if (_dragging) CancelTabDrag();
+
         try
         {
             if (!_forceQuit && !_private)
             {
-                var urls = Tabs
-                    .Where(t => !t.IsBroken)
-                    .Select(t => t.IsNewTab ? Urls.Home : t.Url)
-                    .Where(u => !u.Contains(Pages.Host, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                // Every open window's tabs are remembered, not just this one's, so a session
+                // spread over two windows comes back in one piece.
+                var windows = (Application.Current as App)?.BrowserWindows.Where(w => !w.IsPrivate).ToList() ?? [this];
+                var urls = new List<string>();
+                var active = 0;
+                foreach (var window in windows)
+                {
+                    var (windowUrls, windowActive) = window.SessionSnapshot();
+                    if (ReferenceEquals(window, this)) active = urls.Count + windowActive;
+                    urls.AddRange(windowUrls);
+                }
 
-                Store.SaveSession(urls, Math.Max(0, _active is null ? 0 : Tabs.IndexOf(_active)));
+                // A window that closed earlier in this run is no longer on that list, so its
+                // tabs are remembered until the last window writes the file. This window's own
+                // tabs are handed over the same way when another window is still open.
+                var application = Application.Current as App;
+                if (application is not null)
+                {
+                    if (windows.Count > 1) application.RetireTabs(SessionSnapshot().Urls);
+                    urls.AddRange(application.RetiredTabs);
+                }
+
+                if (urls.Count == 0) urls.Add(Urls.Home);
+                Store.SaveSession(urls, Math.Clamp(active, 0, urls.Count - 1));
                 Store.SaveHistory();
                 Store.SaveStats();
             }
@@ -311,12 +388,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Only the last window gets to end the process. With a private window still open,
-        // closing the normal one has to leave the browser running - this watchdog used to
-        // be armed by every window, so closing the normal window killed the private one
-        // with it about a second and a half later.
-        var lastWindow = Application.Current is null ||
-            !Application.Current.Windows.OfType<Window>().Any(w => !ReferenceEquals(w, this));
+        // Only the last window gets to end the process. With another window still open,
+        // closing this one has to leave the browser running - this watchdog used to be armed
+        // by every window, so closing one killed the others with it a moment later. Popup
+        // windows (a sign-in window) do not count: they belong to the window that opened them.
+        var app = Application.Current as App;
+        var lastWindow = app is null || !app.HasOtherWindows(this);
         if (!lastWindow) return;
 
         var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
@@ -464,6 +541,7 @@ public partial class MainWindow : Window
         core.ProcessFailed += (_, e) => OnProcessFailed(tab, core, e);
         core.PermissionRequested += (_, e) => OnPermissionRequested(tab, core, e);
         core.ContainsFullScreenElementChanged += (_, _) => SetFullscreen(core.ContainsFullScreenElement);
+        core.IsDocumentPlayingAudioChanged += (_, _) => OnAudioChanged(tab, core);
 
         // A page must never hold the browser hostage. Closing a tab or the window is
         // unconditional: a beforeunload "leave site?" prompt is accepted for you rather
@@ -514,6 +592,7 @@ public partial class MainWindow : Window
 
         _active = tab;
         Wake(tab);
+        OnAudioChanged(tab, tab.Core!);
 
         _omniSuppress = true;
         Omni.Text = DisplayUrl(tab);
@@ -580,6 +659,364 @@ public partial class MainWindow : Window
         }
     }
 
+    // =====================================================================
+    //  dragging tabs: reorder in the strip, drop outside for a new window
+    // =====================================================================
+
+    /// <summary>
+    /// The window's own messages. A tab drag is followed here rather than through WPF mouse
+    /// events because the interesting half of a drag - the part over the page - happens above
+    /// the engine's child window, which does not report to WPF. Capture is taken when the drag
+    /// starts, so the pointer keeps talking to this window all the way out.
+    /// </summary>
+    private IntPtr OnWindowMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int MouseMove = 0x0200;
+        const int LeftButtonUp = 0x0202;
+        const int KeyDown = 0x0100;
+        const int CaptureChanged = 0x0215;
+
+        switch (msg)
+        {
+            case MouseMove when _dragTab is not null:
+                var cursor = Native.Cursor();
+                if (!_dragging)
+                {
+                    if (Native.Distance(cursor, _dragFrom) < 6) break;
+                    BeginTabDrag(cursor);
+                }
+                UpdateTabDrag(cursor);
+                handled = true;
+                break;
+
+            case LeftButtonUp:
+                if (_dragging) { EndTabDrag(); handled = true; }
+                _dragTab = null;
+                break;
+
+            case KeyDown when _dragging && wParam == (IntPtr)0x1B: // Esc calls the whole thing off
+                CancelTabDrag();
+                handled = true;
+                break;
+
+            case CaptureChanged when _dragging:
+                CancelTabDrag();
+                break;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    /// <summary>Where a tab's container sits, in this window's coordinates.</summary>
+    private Point TabOrigin(ZTab tab)
+    {
+        if (TabStrip.ItemContainerGenerator.ContainerFromItem(tab) is FrameworkElement container)
+        {
+            try { return container.TransformToAncestor(this).Transform(new Point(0, 0)); }
+            catch { /* mid-layout: the ghost just starts at the edge */ }
+        }
+        return new Point(0, 0);
+    }
+
+    /// <summary>How far down the tab strip reaches, so "past the tabs" can be recognised.</summary>
+    private double StripBottom()
+    {
+        try
+        {
+            if (TabScroll.ActualHeight > 0)
+                return TabScroll.TransformToAncestor(this).Transform(new Point(0, TabScroll.ActualHeight)).Y;
+        }
+        catch
+        {
+            // Fall through to the header row.
+        }
+        return RowHeader.ActualHeight;
+    }
+
+    /// <summary>Which gap in the strip a pointer at this x would drop into.</summary>
+    private int DropIndex(double x)
+    {
+        for (var i = 0; i < Tabs.Count; i++)
+        {
+            if (TabStrip.ItemContainerGenerator.ContainerFromItem(Tabs[i]) is not FrameworkElement container) continue;
+            if (container.ActualWidth <= 0) continue;
+            try
+            {
+                var origin = container.TransformToAncestor(this).Transform(new Point(0, 0));
+                if (x < origin.X + container.ActualWidth / 2) return i;
+            }
+            catch
+            {
+                // Mid-layout: keep the current order.
+            }
+        }
+        return Tabs.Count;
+    }
+
+    private void BeginTabDrag(Native.Point32 cursor)
+    {
+        if (_dragTab is null) return;
+        _dragging = true;
+        _dragDetach = false;
+        Native.CaptureMouse(this);
+
+        var scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        var origin = TabOrigin(_dragTab);
+        // The grab point inside the tab, so the ghost starts exactly where the tab was.
+        _dragGrabX = cursor.X / scale - (Left + origin.X);
+        _dragGrabY = cursor.Y / scale - (Top + origin.Y);
+
+        ShowDragGhost(_dragTab);
+        if (TabStrip.ItemContainerGenerator.ContainerFromItem(_dragTab) is FrameworkElement container)
+            container.Opacity = 0.3;
+    }
+
+    private void UpdateTabDrag(Native.Point32 cursor)
+    {
+        var point = PointFromScreen(new Point(cursor.X, cursor.Y));
+        var stripBottom = StripBottom();
+
+        // Past the tabs, or out of the window, means "pop this out".
+        _dragDetach = point.Y > stripBottom + 10
+            || point.X < -60 || point.Y < -60
+            || point.X > ActualWidth + 60 || point.Y > ActualHeight + 60;
+
+        if (_dragGhost is not null)
+        {
+            _dragGhost.Left = Left + point.X - _dragGrabX;
+            _dragGhost.Top = Top + point.Y - _dragGrabY;
+            // The ghost says which of the two things letting go will do: a tab, or a window.
+            _dragGhost.Opacity = _dragDetach ? 0.6 : 0.92;
+        }
+
+        if (!_dragDetach) ReorderForDrag(point.X);
+    }
+
+    /// <summary>Live reordering: the tab follows the pointer instead of a drop marker.</summary>
+    private void ReorderForDrag(double x)
+    {
+        if (_dragTab is null) return;
+        var from = Tabs.IndexOf(_dragTab);
+        if (from < 0) return;
+
+        var index = DropIndex(x);
+        var to = Math.Clamp(index > from ? index - 1 : index, 0, Tabs.Count - 1);
+
+        // Pinned tabs are the first few, always: a drag cannot mix them in with the rest.
+        var pinned = Tabs.Count(t => t.IsPinned);
+        to = _dragTab.IsPinned ? Math.Min(to, Math.Max(0, pinned - 1)) : Math.Max(to, pinned);
+        if (to == from) return;
+
+        Tabs.Move(from, to);
+    }
+
+    private void EndTabDrag()
+    {
+        var tab = _dragTab;
+        var detach = _dragDetach;
+        FinishDragVisuals();
+        _dragging = false;
+        _dragDetach = false;
+        _dragTab = null;
+
+        if (tab is null) return;
+        if (detach) PopOut(tab);
+        else SettleTabs();
+    }
+
+    private void CancelTabDrag()
+    {
+        FinishDragVisuals();
+        _dragging = false;
+        _dragDetach = false;
+        _dragTab = null;
+    }
+
+    private void FinishDragVisuals()
+    {
+        Native.ReleaseMouse();
+        if (_dragGhost is not null)
+        {
+            try { _dragGhost.Close(); } catch { /* already gone */ }
+            _dragGhost = null;
+        }
+        foreach (var tab in Tabs)
+        {
+            if (TabStrip.ItemContainerGenerator.ContainerFromItem(tab) is FrameworkElement container)
+                container.Opacity = 1;
+        }
+    }
+
+    /// <summary>
+    /// The little tab that follows the pointer. It lives in its own top-most window because a
+    /// WPF element inside the shell cannot draw over the engine's page surface.
+    /// </summary>
+    private void ShowDragGhost(ZTab tab)
+    {
+        var origin = TabOrigin(tab);
+        var content = new Grid { Margin = new Thickness(11, 0, 8, 0) };
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        UIElement mark = tab.HasFavicon && tab.Favicon is not null
+            ? new Image { Source = tab.Favicon, Width = 16, Height = 16, Stretch = Stretch.Uniform }
+            : new VectorIcon { Data = Icons.Globe, Size = 15, Foreground = (Brush)FindResource("Ink3") };
+
+        var badge = new Grid
+        {
+            Width = 16, Height = 16, Margin = new Thickness(0, 0, 9, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        badge.Children.Add(mark);
+        Grid.SetColumn(badge, 0);
+        content.Children.Add(badge);
+
+        var title = new TextBlock
+        {
+            Text = tab.Title,
+            FontSize = 12.5,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Foreground = (Brush)FindResource("Ink"),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(title, 1);
+        content.Children.Add(title);
+
+        var panel = new PixelPanel
+        {
+            CornerSteps = 2,
+            CornerStep = 4,
+            Fill = (Brush)FindResource("CardBg"),
+            Stroke = (Brush)FindResource("Accent"),
+            StrokeThickness = 1,
+            Effect = (Effect)FindResource("PopupShadow"),
+            Child = content
+        };
+
+        _dragGhost = new Window
+        {
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = null,
+            ShowInTaskbar = false,
+            ShowActivated = false,
+            Topmost = true,
+            IsHitTestVisible = false,
+            Width = Math.Max(140, tab.TabWidth),
+            Height = 32,
+            Left = Left + origin.X,
+            Top = Top + origin.Y,
+            Content = panel
+        };
+
+        _dragGhost.Show();
+        Native.MakeFloatWindow(_dragGhost);
+    }
+
+    /// <summary>Opens the dragged tab as its own window, under the pointer that dropped it.</summary>
+    private void PopOut(ZTab tab)
+    {
+        if (Application.Current is not App app) return;
+
+        var cursor = Native.Cursor();
+        var url = tab.IsNewTab ? Urls.Home : tab.Url;
+        var title = tab.Title;
+        var width = ActualWidth;
+        var height = ActualHeight;
+        var scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+
+        // A Nibble window under the pointer takes the tab, the way a real browser does. A
+        // private tab never lands in a normal window (and the other way round).
+        if (MainWindowUnder(cursor) is { } host && !ReferenceEquals(host, this) && host.IsPrivate == _private)
+        {
+            RemoveTabWithoutClosing(tab);
+            host.AdoptTab(url, title, activate: true);
+            return;
+        }
+
+        app.OpenWindow(url, privateWindow: _private, place: window =>
+            window.PlaceUnderPointer(cursor, _dragGrabX, _dragGrabY, width, height, scale));
+        RemoveTabWithoutClosing(tab);
+    }
+
+    private static MainWindow? MainWindowUnder(Native.Point32 cursor)
+    {
+        if (Application.Current is not App app) return null;
+        foreach (var window in app.BrowserWindows)
+        {
+            if (Native.Bounds(window, out var rect) && Native.Contains(rect, cursor)) return window;
+        }
+        return null;
+    }
+
+    /// <summary>Takes a tab that was dragged in from another window.</summary>
+    public void AdoptTab(string url, string? title, bool activate = true)
+    {
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Activate();
+            var tab = NewTab(url, activate);
+            if (!string.IsNullOrWhiteSpace(title)) tab.Title = title;
+        }));
+    }
+
+    /// <summary>Takes a tab out of this window without it counting as closed.</summary>
+    private void RemoveTabWithoutClosing(ZTab tab)
+    {
+        var index = Tabs.IndexOf(tab);
+        if (index < 0) return;
+
+        Tabs.Remove(tab);
+        tab.View.Visibility = Visibility.Collapsed;
+        ContentHost.Children.Remove(tab.View);
+        Native.StopWatchingClicks(tab.PageHandle, _pageClickProc, PageClickSubclassId);
+        try { tab.View.Dispose(); } catch { /* already gone */ }
+
+        if (Tabs.Count == 0)
+        {
+            NewTab(Urls.Home, true);
+            return;
+        }
+
+        if (ReferenceEquals(tab, _active)) Activate(Tabs[Math.Clamp(index, 0, Tabs.Count - 1)]);
+        SettleTabs();
+    }
+
+    /// <summary>
+    /// Puts the window so the point of the tab the user grabbed sits under the pointer. The
+    /// first guess uses this window's scale factor; once the new window exists its own scale is
+    /// known, so <see cref="ApplyDropPlacement"/> moves it for real in physical pixels, which
+    /// is what keeps the drop exact on a mix of monitors at different scale factors.
+    /// </summary>
+    public void PlaceUnderPointer(Native.Point32 cursor, double offsetX, double offsetY,
+        double width, double height, double scaleGuess)
+    {
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        WindowState = WindowState.Normal;
+        Width = Math.Max(MinWidth, width);
+        Height = Math.Max(MinHeight, height);
+        _dropAt = new DropPlacement(cursor, offsetX, offsetY);
+
+        var scale = scaleGuess > 0 ? scaleGuess : 1;
+        Left = cursor.X / scale - offsetX;
+        Top = cursor.Y / scale - offsetY;
+    }
+
+    private void ApplyDropPlacement()
+    {
+        if (_dropAt is not { } drop) return;
+        _dropAt = null;
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+
+        var scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        Native.MoveWindow(hwnd,
+            drop.Cursor.X - (int)Math.Round(drop.OffsetX * scale),
+            drop.Cursor.Y - (int)Math.Round(drop.OffsetY * scale));
+    }
+
     private void ReopenClosedTab()
     {
         if (_closed.Count == 0)
@@ -643,6 +1080,12 @@ public partial class MainWindow : Window
             if (ReferenceEquals(tab, _active) || tab.Core is null || tab.IsSleeping) continue;
             if (DateTime.Now - tab.LastActive < after) continue;
 
+            // Never put a tab that is making noise to sleep: suspending one tears its page
+            // down, which is what stopped YouTube videos the moment the tab lost focus. A
+            // moment of grace afterwards covers a pause, a buffer or a quiet stretch of audio,
+            // so a video that briefly goes silent does not get napped mid-sentence either.
+            if (AudioPlaying(tab)) continue;
+
             try
             {
                 tab.Core.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Low;
@@ -689,6 +1132,47 @@ public partial class MainWindow : Window
             return 0;
         }
         return total;
+    }
+
+    /// <summary>
+    /// True while a tab is playing sound, or was a moment ago. Chromium only calls a page
+    /// audible while the samples it hands the output device are actually non-silent, so the
+    /// timestamp keeps a brief pause, a buffer or a quiet passage from counting as "finished
+    /// with sound" and letting the tab be put to sleep mid-video.
+    /// </summary>
+    private static bool AudioPlaying(ZTab tab)
+    {
+        try
+        {
+            if (tab.Core is null) return false;
+            if (tab.Core.IsDocumentPlayingAudio)
+            {
+                tab.LastAudible = DateTime.Now;
+                return true;
+            }
+        }
+        catch
+        {
+            // An engine that will not answer is treated as silent.
+            return false;
+        }
+
+        return DateTime.Now - tab.LastAudible < TimeSpan.FromSeconds(20);
+    }
+
+    /// <summary>Keeps a tab's speaker mark honest and remembers when sound was last heard.</summary>
+    private static void OnAudioChanged(ZTab tab, CoreWebView2? core)
+    {
+        try
+        {
+            if (core is null) return;
+            tab.IsAudible = core.IsDocumentPlayingAudio;
+            if (tab.IsAudible) tab.LastAudible = DateTime.Now;
+        }
+        catch
+        {
+            // The tab is going away; nothing to record.
+        }
     }
 
     // =====================================================================
@@ -943,8 +1427,97 @@ public partial class MainWindow : Window
 
     private void OnNewWindowRequested(ZTab tab, CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs e)
     {
-        e.Handled = true;
-        NewTab(e.Uri, true);
+        // A plain link that asked for its own tab (target="_blank") is a tab. Anything shaped
+        // like window.open - a size, a toolbox, or a script rather than a click - is a window,
+        // because that is what sign-in flows are written against.
+        if (!WantsItsOwnWindow(e))
+        {
+            e.Handled = true;
+            NewTab(e.Uri, true);
+            return;
+        }
+
+        _ = OpenPopupAsync(sender, e);
+    }
+
+    private static bool WantsItsOwnWindow(CoreWebView2NewWindowRequestedEventArgs e)
+    {
+        var features = e.WindowFeatures;
+        return !e.IsUserInitiated
+            || features.HasSize
+            || features.HasPosition
+            || features.ShouldDisplayMenuBar
+            || features.ShouldDisplayToolbar
+            || features.ShouldDisplayStatus;
+    }
+
+    /// <summary>
+    /// Opens a window a page asked for. Sign-in flows need this to be a real window: they talk
+    /// back to the page that opened them through window.opener and shared storage, and neither
+    /// survives being turned into a tab - which is the "missing initial state" a Google sign-in
+    /// inside Firebase reports when it happens.
+    /// </summary>
+    private async Task OpenPopupAsync(CoreWebView2 opener, CoreWebView2NewWindowRequestedEventArgs e)
+    {
+        // The page is parked inside window.open until this deferral completes, so every path
+        // through here has to end - including the failures.
+        var deferral = e.GetDeferral();
+        PopupWindow? popup = null;
+        try
+        {
+            if (_env is null)
+            {
+                e.Handled = true;
+                NewTab(e.Uri, true);
+                return;
+            }
+
+            string? agent = null;
+            try { agent = opener.Settings.UserAgent; } catch { /* the engine default */ }
+
+            popup = new PopupWindow(this, _private, e.WindowFeatures);
+
+            // The window has to be real on screen before the engine starts inside it: WebView2
+            // only finishes initialising once its window exists, so showing it first is what
+            // keeps window.open from hanging forever. It stays empty for the moment the engine
+            // takes to start and fills in as soon as the request is handed over.
+            popup.Show();
+
+            var prepared = popup.PrepareAsync(_env, _private, agent, RouteNewWindow);
+            var finished = await Task.WhenAny(prepared, Task.Delay(12000));
+            if (!ReferenceEquals(finished, prepared))
+                throw new TimeoutException("the engine did not start this window in time");
+            await prepared;
+
+            // Handing over the view makes this window the opener's window.open result: the page
+            // gets its WindowProxy back and can finish what it started.
+            e.NewWindow = popup.CoreWebView2;
+            popup.Activate();
+        }
+        catch (Exception ex)
+        {
+            Store.LogError($"popup window failed: {ex.GetType().Name}: {ex.Message}");
+            try { popup?.Close(); } catch { /* it never got going */ }
+            e.Handled = true;
+            try { NewTab(e.Uri, true); } catch { /* the link is lost, but not the browser */ }
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    /// <summary>A window opened by a page opened another one: the same rules apply.</summary>
+    private void RouteNewWindow(CoreWebView2 opener, CoreWebView2NewWindowRequestedEventArgs e)
+    {
+        if (!WantsItsOwnWindow(e))
+        {
+            e.Handled = true;
+            NewTab(e.Uri, true);
+            return;
+        }
+
+        _ = OpenPopupAsync(opener, e);
     }
 
     private void OnProcessFailed(ZTab tab, CoreWebView2 sender, CoreWebView2ProcessFailedEventArgs e)
@@ -1492,7 +2065,7 @@ public partial class MainWindow : Window
             case "t" when ctrl && shift: ReopenClosedTab(); return true;
             case "n" when ctrl && shift: NewPrivateWindow(); return true;
             case "t" when ctrl: NewTab(Urls.Home, true); return true;
-            case "n" when ctrl: NewTab(Urls.Home, true); return true;
+            case "n" when ctrl: NewWindow(); return true;
             case "w" when ctrl: CloseTab(_active); return true;
             case "l" when ctrl: FocusOmnibox(); return true;
             case "d" when ctrl: ToggleBookmark(); return true;
@@ -1778,6 +2351,7 @@ public partial class MainWindow : Window
         MenuList.Children.Clear();
 
         MenuList.Children.Add(PopupRow(Icons.Plus, "New tab", "Ctrl+T", () => { ClosePopups(); NewTab(Urls.Home, true); }));
+        MenuList.Children.Add(PopupRow(Icons.Maximize, "New window", "Ctrl+N", () => NewWindow()));
         MenuList.Children.Add(PopupRow(Icons.Shield, "New private window",
             "Ctrl+Shift+N · nothing is saved", () => NewPrivateWindow()));
         MenuList.Children.Add(PopupRow(Icons.Sparkle, "Command palette", "Ctrl+K", () => { ClosePopups(); OpenPalette(); }));
@@ -2175,6 +2749,7 @@ public partial class MainWindow : Window
         _commands =
         [
             new BrowserCommand("New tab", "Ctrl+T", Icons.Plus, () => NewTab(Urls.Home, true), "open"),
+            new BrowserCommand("New window", "Ctrl+N", Icons.Maximize, () => NewWindow(), "second window", "another"),
             new BrowserCommand("New private window", "Ctrl+Shift+N", Icons.Shield, () => NewPrivateWindow(),
                 "incognito", "private", "porn", "secret", "no history"),
             new BrowserCommand("Close tab", "Ctrl+W", Icons.Close, () => CloseTab(_active), "shut"),
@@ -2434,33 +3009,55 @@ public partial class MainWindow : Window
 
     private void CloseOtherTabs()
     {
-        if (_active is null) return;
-        var others = Tabs.Where(t => !ReferenceEquals(t, _active) && !t.IsPinned).ToList();
+        if (_active is not null) CloseOtherTabs(_active);
+    }
+
+    /// <summary>Everything but this tab, leaving pinned tabs where they are.</summary>
+    private void CloseOtherTabs(ZTab keep)
+    {
+        var others = Tabs.Where(t => !ReferenceEquals(t, keep) && !t.IsPinned).ToList();
         foreach (var tab in others) CloseTab(tab, remember: false);
         ShowToast(others.Count == 0 ? "Nothing else to close" : $"Closed {others.Count} tab{(others.Count == 1 ? "" : "s")}",
-            _active.Title, Icons.Close, null, 2400);
+            keep.Title, Icons.Close, null, 2400);
     }
 
     private void CloseTabsToRight()
     {
-        if (_active is null) return;
-        var index = Tabs.IndexOf(_active);
+        if (_active is not null) CloseTabsRightOf(_active);
+    }
+
+    private void CloseTabsRightOf(ZTab from)
+    {
+        var index = Tabs.IndexOf(from);
+        if (index < 0) return;
         var right = Tabs.Skip(index + 1).Where(t => !t.IsPinned).ToList();
         foreach (var tab in right) CloseTab(tab, remember: false);
         ShowToast(right.Count == 0 ? "Nothing to the right" : $"Closed {right.Count} tab{(right.Count == 1 ? "" : "s")} to the right",
-            _active.Title, Icons.Forward, null, 2400);
+            from.Title, Icons.Forward, null, 2400);
     }
 
     private void TogglePinTab()
     {
-        if (_active is null) return;
-        var tab = _active;
+        if (_active is not null) TogglePin(_active);
+    }
+
+    private void TogglePin(ZTab tab)
+    {
         tab.IsPinned = !tab.IsPinned;
         if (tab.IsPinned) Tabs.Move(Tabs.IndexOf(tab), 0);
         UpdateTabWidths();
         ShowToast(tab.IsPinned ? "Tab pinned" : "Tab unpinned",
             tab.IsPinned ? "It stays first, as just its icon." : "Back to a normal tab.",
             Icons.Pin, null, 2200);
+    }
+
+    /// <summary>Hands a tab to a window of its own - what dropping it out of the strip does.</summary>
+    private void MoveTabToNewWindow(ZTab tab)
+    {
+        if (Application.Current is not App app) return;
+        var url = tab.IsNewTab ? Urls.Home : tab.Url;
+        app.OpenWindow(url, privateWindow: _private);
+        RemoveTabWithoutClosing(tab);
     }
 
     private void DuplicateActiveTab()
@@ -3229,12 +3826,66 @@ public partial class MainWindow : Window
         if ((sender as FrameworkElement)?.DataContext is not ZTab tab) return;
         if (FindAncestor<ButtonBase>(e.OriginalSource as DependencyObject) is not null) return;
         if (!ReferenceEquals(tab, _active)) Activate(tab);
+
+        // A press might turn into a drag; the message hook decides once the pointer moves.
+        _dragTab = tab;
+        _dragFrom = Native.Cursor();
     }
 
     private void Tab_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Middle) return;
         if ((sender as FrameworkElement)?.DataContext is ZTab tab) CloseTab(tab);
+    }
+
+    /// <summary>
+    /// Right-clicking a tab offers the things that make a strip full of tabs manageable: close
+    /// this one, close the rest, close everything to its right, and so on.
+    /// </summary>
+    private void Tab_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement element) return;
+        if (element.DataContext is not ZTab tab) return;
+        e.Handled = true;
+        OpenTabMenu(tab, element);
+    }
+
+    private void OpenTabMenu(ZTab tab, FrameworkElement anchor)
+    {
+        if (TabStrip.Items.Count == 0) return;
+
+        MenuTitle.Text = "NIBBLE \u00b7 TAB";
+        MenuList.Children.Clear();
+
+        var index = Tabs.IndexOf(tab);
+        if (index < 0) return;
+        var others = Tabs.Count(t => !ReferenceEquals(t, tab) && !t.IsPinned);
+        var right = Tabs.Skip(index + 1).Count(t => !t.IsPinned);
+
+        MenuList.Children.Add(PopupRow(Icons.Close, "Close tab", "Ctrl+W",
+            () => { ClosePopups(); CloseTab(tab); }));
+        if (others > 0)
+        {
+            MenuList.Children.Add(PopupRow(Icons.Close, "Close other tabs", others.ToString(),
+                () => { ClosePopups(); CloseOtherTabs(tab); }));
+        }
+
+        if (right > 0)
+        {
+            MenuList.Children.Add(PopupRow(Icons.Forward, "Close tabs to the right", right.ToString(),
+                () => { ClosePopups(); CloseTabsRightOf(tab); }));
+        }
+
+        Separator(MenuList, Resources);
+        MenuList.Children.Add(PopupRow(Icons.Copy, "Duplicate tab", "",
+            () => { ClosePopups(); NewTab(tab.IsNewTab ? Urls.Home : tab.Url, true); }));
+        MenuList.Children.Add(PopupRow(Icons.Pin, tab.IsPinned ? "Unpin tab" : "Pin tab",
+            tab.IsPinned ? "" : "shrinks to its icon",
+            () => { ClosePopups(); TogglePin(tab); }));
+        MenuList.Children.Add(PopupRow(Icons.Maximize, "Move to a new window", "",
+            () => { ClosePopups(); MoveTabToNewWindow(tab); }));
+
+        OpenPopup(MenuPopup, anchor);
     }
 
     private void Tab_MouseEnter(object sender, MouseEventArgs e)
@@ -3430,6 +4081,13 @@ public partial class MainWindow : Window
     {
         ClosePopups(animate: false);
         if (Application.Current is App app) app.OpenPrivateWindow(url);
+    }
+
+    /// <summary>A second window beside this one; the tabs in it are independent.</summary>
+    private void NewWindow(string? url = null)
+    {
+        ClosePopups(animate: false);
+        if (Application.Current is App app) app.OpenWindow(url);
     }
 
     /// <summary>Explains what a private window does and does not hide, once, on open.</summary>

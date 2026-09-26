@@ -77,6 +77,20 @@ public sealed class ZTab : INotifyPropertyChanged
         set => Set(ref _isSleeping, value);
     }
 
+    /// <summary>True while this tab is making sound, shown as a speaker mark in the strip.</summary>
+    private bool _isAudible;
+    public bool IsAudible
+    {
+        get => _isAudible;
+        set => Set(ref _isAudible, value);
+    }
+
+    /// <summary>
+    /// When sound was last heard from this tab. A tab that just went quiet is still treated as
+    /// playing, so a pause or a buffer does not hand it to the nap sweep.
+    /// </summary>
+    public DateTime LastAudible { get; set; } = DateTime.MinValue;
+
     /// <summary>Pinned tabs sit first, shrink to their favicon, and are never auto-closed.</summary>
     private bool _isPinned;
     public bool IsPinned

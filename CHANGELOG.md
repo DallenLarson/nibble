@@ -1,5 +1,58 @@
 # Nibble changelog
 
+## 1.2.0 — tabs that go where you put them, and sign-in that works
+
+**Drag a tab out of the strip and it becomes its own window.** Drag it sideways and the strip
+reorders around it, with a ghost of the tab following the pointer and a paler release once the
+pointer is over the page rather than the strip. Drop it on another Nibble window and that
+window takes it instead. Escape calls the whole thing off. A drag is followed through the
+window's own message hook rather than WPF mouse events, because the interesting half of a drag
+happens over the engine's child window, where WPF stops hearing about the mouse.
+
+**A page that calls `window.open` gets a real window again.** This is the fix for signing in
+with Google through Firebase and being told *"unable to process request due to missing initial
+state"*. Sign-in flows are written against `window.opener` and shared storage, and neither
+survives being turned into a tab. Nibble already handed window-shaped requests to a real
+window — but it built that window **before showing it**, and the engine only finishes starting
+once its window exists. So `window.open` never returned, the flow died where it stood, and the
+page reported nothing at all. The window is now shown first and handed over the moment the
+engine is ready. Measured with a probe page that opens a window and then asks it what it can
+see: `window.open` returned in 141 ms, the popup sees its opener, session storage survives the
+trip, and its message arrives at the opener with a source window attached — 6 of 6 checks.
+
+**Tabs are easier to close.** The close mark went from a 12 px glyph on a 20 px button to a
+14 px glyph on a 26 px button, with a red hover tint. Right-clicking a tab now opens a tab
+menu: close tab, **close other tabs**, **close tabs to the right** (each showing how many it
+would take with it), duplicate, pin, and move to a new window. The probe closes three tabs
+down to one with a single click on *close other tabs*.
+
+**Sound keeps playing.** Chromium only calls a page audible while non-silent samples are on
+their way to the output device, so a tab with sound coming out of it is now skipped by the
+sleeping-tab timer — and stays skipped for twenty seconds after the last sound, so a pause, a
+buffer or a quiet passage does not hand a video to the freezer mid-sentence. Measured with the
+nap timer at 30 s: a backgrounded tab playing a 220 Hz tone advanced its audio 49.0 s of a
+possible 49.0 s, its reports never stopped, and it was still reporting at the end of a 50 s
+window in the background.
+
+**Two bugs the new drag test found on the way.**
+
+- **A second window no longer opens with the whole session in it.** Ctrl+N, a link that asked
+  for its own window, and a popped-out tab each used to restore last session's tabs and *then*
+  add the page they were opened for — so a dragged-out tab arrived with every old tab behind
+  it, and a fresh window was never fresh. Only the first window of a launch restores the
+  session now; windows opened afterwards start on exactly what they were opened for.
+- **Closing two windows one at a time used to forget one of them.** The session is written by
+  the last window to close, so the tabs of a window closed a moment earlier were already gone
+  by then. Each window now hands its tabs over on the way out, and the file ends up with the
+  lot whichever order they are closed in (proved by closing both windows and reading what the
+  browser saved).
+
+**New probes, all kept in `tools/`**: `PopupProbe.ps1` (a window opened by a page, asked what
+it sees), `TabDragProbe.ps1` (a real drag: the pointer is moved, the button messages are
+posted, and the result is read out of the session file), `TabMenuProbe.ps1` (the tab menu, and
+the size of the close mark), `MediaProbe.ps1` (whether audio keeps advancing in a background
+tab) and `AutoProbe.ps1` (the same window question without a click).
+
 ## 1.1.2 — smaller, and easier to call your own
 
 **The exe is 52,787 bytes smaller: 2,228,347 → 2,175,560 bytes.** The page mark and the

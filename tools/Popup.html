@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>popup window</title>
+<style>body{background:#101012;color:#eee;font:14px system-ui;margin:0;display:grid;place-items:center;height:100vh}
+h1{font-size:15px;color:#a3e635}</style></head>
+<body><div><h1 id="h">popup window</h1></div>
+<script>
+function post(kind, extra) {
+  const body = JSON.stringify(Object.assign({
+    kind: kind, wall: Date.now(), where: 'popup'
+  }, extra || {}));
+  fetch('/report', { method: 'POST', body: body, headers: { 'content-type': 'application/json' } })
+    .catch(function () {});
+}
+// The two things a sign-in popup needs from the window that opened it.
+const hasOpener = !!window.opener && window.opener !== window;
+let storage = 'unavailable';
+try {
+  sessionStorage.setItem('nibble-probe', 'kept');
+  storage = sessionStorage.getItem('nibble-probe') === 'kept' ? 'kept' : 'lost';
+} catch (e) { storage = 'threw:' + e.name; }
+post('popup-loaded', { hasOpener: hasOpener, storage: storage, size: window.innerWidth + 'x' + window.innerHeight });
+try {
+  window.opener.postMessage('signed-in-as-probe', '*');
+  post('popup-posted', { ok: true });
+} catch (e) {
+  post('popup-posted', { ok: false, err: String(e) });
+}
+</script></body></html>

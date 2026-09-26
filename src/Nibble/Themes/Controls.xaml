@@ -44,8 +44,11 @@
     </Style>
 
     <Style x:Key="TabCloseButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
-        <Setter Property="Width" Value="20" />
-        <Setter Property="Height" Value="20" />
+        <!-- A tab is 32 tall and the close mark is the one thing people aim at in a hurry;
+             26 square is the largest that still leaves the tab title room. -->
+        <Setter Property="Width" Value="26" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="c:HoverTint.Brush" Value="{DynamicResource CloseTint}" />
     </Style>
 
     <!-- ============ window controls, right-aligned, level with the tabs ============ -->

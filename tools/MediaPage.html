@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>media probe</title>
+<style>body{background:#101012;color:#eee;font:14px system-ui;margin:0;display:grid;place-items:center;height:100vh}
+h1{font-size:15px;color:#a3e635}</style></head>
+<body><div><h1 id="h">media probe</h1>
+<p><button id="go">start playback</button></p>
+<audio id="a" src="/tone.wav" preload="auto" loop></audio></div>
+<script>
+const a = document.getElementById('a');
+const h = document.getElementById('h');
+let frames = 0;
+let lastFrameAt = Date.now();
+function post(kind, extra) {
+  const body = JSON.stringify(Object.assign({
+    kind: kind, wall: Date.now(), ct: Number(a.currentTime.toFixed(3)), paused: a.paused,
+    vis: document.visibilityState, frames: frames, vtime: Number((performance.now() / 1000).toFixed(3))
+  }, extra || {}));
+  fetch('/report', { method: 'POST', body: body, headers: { 'content-type': 'application/json' } })
+    .catch(function () {});
+}
+function spin() { frames++; lastFrameAt = Date.now(); requestAnimationFrame(spin); }
+requestAnimationFrame(spin);
+setInterval(function () { post('tick'); paint(); }, 1000);
+function paint() {
+  const text = 'ct ' + a.currentTime.toFixed(1) + ' frames ' + frames + ' ' + document.visibilityState +
+    ' ' + (a.paused ? 'PAUSED' : 'playing');
+  h.textContent = text;
+  document.title = text;
+}
+document.addEventListener('visibilitychange', function () { post('visibility'); paint(); });
+a.addEventListener('pause', function () { post('pause'); paint(); });
+a.addEventListener('playing', function () { post('playing'); paint(); });
+a.addEventListener('play', function () { post('play'); paint(); });
+a.addEventListener('stalled', function () { post('stalled'); });
+a.addEventListener('error', function () { post('error', { code: a.error && a.error.code }); });
+function begin() {
+  return a.play().then(function () { post('start'); paint(); })
+    .catch(function (e) { post('playfail', { err: String(e) }); paint(); });
+}
+document.getElementById('go').addEventListener('click', begin);
+// Autoplay may be refused without a gesture; the probe clicks the button when it is.
+begin();
+</script></body></html>

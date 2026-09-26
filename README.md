@@ -182,6 +182,24 @@ Everything lives in one header row, level with the tabs:
   they shrink evenly as you open more (down to 112 px, then the strip scrolls with the
   mouse wheel).
 - **Every tab shows its favicon**, with a crisp pixel globe as the fallback.
+- **A tab can be dragged.** Sideways reorders the strip, and letting go *below* the strip (or
+  outside the window) hands the tab to a window of its own, placed under the pointer — drop it
+  on another Nibble window instead and that window takes it. A ghost of the tab follows the
+  pointer and goes paler once letting go would make a window rather than a tab; escape calls
+  the drag off. The drag is followed through the window's own message hook rather than WPF
+  mouse events, because the interesting half of a drag happens over the engine's child window.
+- **Closing a lot of tabs takes one gesture.** Right-click any tab: close tab, **close other
+  tabs**, **close tabs to the right** — each showing how many it would close — duplicate, pin,
+  or move to a new window. The close mark itself is a 26 px button with a 14 px glyph and a red
+  hover tint, up from a 20 px button with a 12 px glyph, and a middle-click still closes.
+- **A page that opens a window gets a real window**, which is what a sign-in flow needs:
+  `window.opener` is there, session storage is shared, and it can post back to the page that
+  opened it. (The engine only finishes starting once its window exists, so the window is shown
+  before the page is handed over — building it first is what used to leave Google sign-in
+  hanging with *missing initial state*.)
+- **Sound is never slept on.** A tab that is playing audio is left alone by the
+  sleeping-tab timer, and stays exempt for twenty seconds after the last sound, so a pause or a
+  buffer does not get a video put to sleep mid-play.
 - **New tab button sits directly to the right of the last tab**, not pinned to the edge.
 - **Minimize / maximize / close live on the right of the tab row** and take their
   traffic-light colour on hover: close **red**, minimize **yellow**, maximize **green**,
@@ -245,8 +263,8 @@ Enter advances, Escape skips, and skipping keeps every default. Answers land in
 
 | Area | What you get |
 |---|---|
-| Tabs | Stretch-to-fit widths, favicons, middle-click close, animated activation, sleeping-tab badge, session restore, Ctrl+Shift+T reopen |
-| Windows | One browser per user with command-line hand-off, URL on the command line, remembered size/position, default-browser registration |
+| Tabs | Stretch-to-fit widths, favicons, **drag to reorder or to pull a tab out into its own window**, right-click menu (close others, close to the right, duplicate, pin, move to a window), big close mark, middle-click close, animated activation, sleeping-tab badge, session restore, Ctrl+Shift+T reopen |
+| Windows | Any number of them: one browser per user with command-line hand-off, URL on the command line, **pages that open windows get real windows** (sign-in flows, popups), remembered size/position, default-browser registration |
 | Private windows | Ctrl+Shift+N, a real off-the-record engine profile, its own look, shares one jar with other private windows, leaves nothing on disk |
 | New tab page | Hand-built offline page: pixel clock, pixel-art scene, quick tiles from bookmarks and history, rotating tips, animated tracker counter. Scales with window height, and its search box is its own layer so suggestions open *over* the tiles |
 | DECKRISE tile | `https://www.deckrise.net/` is pinned into the shortcut row by hand: it leads the row and is the only tile a private window shows. `PINNED` at the top of `Assets/newtab.html` |
@@ -258,7 +276,7 @@ Enter advances, Escape skips, and skipping keeps every default. Answers land in
 | Themes | Light, dark, or follow Windows |
 | Theme shop | Bundled themes plus anything you install, as cards with a preview painted from each theme's own colours. Apply, import, export, remove |
 | Site permissions | Camera, microphone, location and notifications refused unless you turn the switch on |
-| Memory | Idle background tabs are suspended to hand their memory back (the `z` badge); tab process count + RAM in the menu |
+| Memory | Idle background tabs are suspended to hand their memory back (the `z` badge) — anything playing sound is left alone; tab process count + RAM in the menu |
 | Icons | Smooth open-source vectors (Lucide ISC + Simple Icons CC0), tinted by the accent |
 | Error pages | Custom pixel page that names the host, explains what failed, and offers Retry / Back / **Open in your browser** / Copy address |
 | Accessibility | Every button, tab close and menu row exposes a real name to Windows UI Automation |

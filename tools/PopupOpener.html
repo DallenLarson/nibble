@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>popup opener</title>
+<style>body{background:#101012;color:#eee;font:14px system-ui;margin:0;display:grid;place-items:center;height:100vh}
+h1{font-size:15px;color:#a3e635}</style></head>
+<body><div><h1 id="h">popup opener</h1>
+<p><button id="go">open popup</button></p></div>
+<script>
+function post(kind, extra) {
+  const body = JSON.stringify(Object.assign({
+    kind: kind, wall: Date.now(), where: 'opener'
+  }, extra || {}));
+  fetch('/report', { method: 'POST', body: body, headers: { 'content-type': 'application/json' } })
+    .catch(function () {});
+}
+window.addEventListener('message', function (e) {
+  post('message-from-popup', { data: String(e.data), hasSource: !!e.source });
+  document.getElementById('h').textContent = 'reply: ' + String(e.data);
+});
+document.getElementById('go').addEventListener('click', function () {
+  // Shaped like the window.open a sign-in SDK makes: a name and a size.
+  const w = window.open('/popup', 'oauth', 'width=520,height=640');
+  post('opened', { opened: !!w, closed: !!w && w.closed });
+});
+</script></body></html>

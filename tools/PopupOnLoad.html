@@ -1,0 +1,20 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>auto popup</title>
+<style>body{background:#101012;color:#eee;font:14px system-ui;margin:0;display:grid;place-items:center;height:100vh}</style></head>
+<body><h1 id="h">auto popup</h1>
+<script>
+function post(kind, extra) {
+  const body = JSON.stringify(Object.assign({ kind: kind, wall: Date.now(), where: 'auto' }, extra || {}));
+  fetch('/report', { method: 'POST', body: body, headers: { 'content-type': 'application/json' } }).catch(function () {});
+}
+post('auto-before', {});
+let result = {};
+try {
+  const w = window.open('/popup', 'oauth', 'width=520,height=640');
+  result = { opened: !!w, closed: !!w && w.closed };
+} catch (e) {
+  result = { threw: String(e) };
+}
+post('auto-opened', result);
+document.getElementById('h').textContent = 'auto: ' + JSON.stringify(result);
+</script></body></html>

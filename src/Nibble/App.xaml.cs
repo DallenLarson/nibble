@@ -10,8 +10,29 @@ public partial class App : Application
     public static Settings Settings { get; private set; } = new();
 
     private SingleInstance? _instance;
-    private MainWindow? _normal;
-    private readonly List<MainWindow> _private = [];
+    private readonly List<MainWindow> _windows = [];
+
+    /// <summary>
+    /// The tabs of windows that have already closed during this run. The last window to close
+    /// is the one that writes the session, so without this the tabs of a window closed earlier
+    /// would be dropped on the floor - two windows, closed one at a time, would come back as
+    /// one.
+    /// </summary>
+    private readonly List<string> _retiredTabs = [];
+
+    public IReadOnlyList<string> RetiredTabs => _retiredTabs;
+
+    public void RetireTabs(IEnumerable<string> tabs) => _retiredTabs.AddRange(tabs);
+
+    /// <summary>Every browser window, in the order they were opened.</summary>
+    public IReadOnlyList<MainWindow> BrowserWindows => _windows;
+
+    /// <summary>True while another browser window is still open - what lets the last one close the process.</summary>
+    public bool HasOtherWindows(MainWindow window) =>
+        _windows.Any(w => !ReferenceEquals(w, window));
+
+    /// <summary>True while a normal (not private) window is open, so a link reuses it.</summary>
+    public MainWindow? NormalWindow => _windows.FirstOrDefault(w => !w.IsPrivate);
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -118,7 +139,7 @@ public partial class App : Application
         }
 
         if (request.Private) OpenPrivateWindow(request.Url);
-        else ShowBrowser(request.Url);
+        else ShowBrowser(request.Url, newWindow: request.NewWindow);
 
         // A version that changed under the user gets said out loud, once, and the background
         // look for a newer one starts a few seconds later so a cold start stays a cold start.
@@ -126,12 +147,12 @@ public partial class App : Application
         if (previous.Length > 0 &&
             !string.Equals(previous, Updater.Current.ToString(), StringComparison.Ordinal))
         {
-            _normal?.AnnounceUpdate(previous);
+            NormalWindow?.AnnounceUpdate(previous);
         }
         Settings.LastVersion = Updater.Current.ToString();
         Store.SaveSettings(Settings);
 
-        _normal?.ScheduleUpdateCheck(TimeSpan.FromSeconds(8));
+        NormalWindow?.ScheduleUpdateCheck(TimeSpan.FromSeconds(8));
     }
 
     /// <summary>
@@ -166,49 +187,48 @@ public partial class App : Application
         Environment.Exit(file is null ? 3 : 0);
     }
 
+
     /// <summary>Opens the normal window, or focuses the one that is already there.</summary>
-    private void ShowBrowser(string? url = null)
+    private void ShowBrowser(string? url = null, bool newWindow = false)
     {
-        if (_normal is not null)
+        if (!newWindow && NormalWindow is { } existing)
         {
-            _normal.Activate();
-            if (url is not null) _normal.OpenUrlInNewTab(url, activate: true);
+            existing.Activate();
+            if (url is not null) existing.OpenUrlInNewTab(url, activate: true);
             return;
         }
 
-        _normal = new MainWindow(privateWindow: false);
-        MainWindow = _normal;
-        // Shutdown is managed here rather than by OnMainWindowClose: a private window is
-        // allowed to outlive the last normal one (as in every other browser), so closing
-        // the normal window must not take the process with it.
-        ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        _normal.Closed += (_, _) =>
-        {
-            _normal = null;
-            if (_private.Count == 0) Shutdown();
-        };
-        _normal.Show();
-
-        if (url is not null) _normal.OpenUrlInNewTab(url, activate: true);
+        OpenWindow(url);
     }
 
-    /// <summary>A private window: its own window, its own throwaway engine profile.</summary>
-    public MainWindow OpenPrivateWindow(string? url = null)
+    /// <summary>
+    /// Opens a browser window and keeps the process alive until the last one closes.
+    /// <paramref name="place"/> runs before the window is shown, so a window opened by
+    /// dragging a tab out appears under the pointer instead of flashing somewhere else first.
+    /// </summary>
+    public MainWindow OpenWindow(string? url = null, bool privateWindow = false, Action<MainWindow>? place = null)
     {
-        var window = new MainWindow(privateWindow: true);
-        _private.Add(window);
+        // The session belongs to the first window of a launch. Windows opened afterwards start
+        // with the page they were asked for.
+        var window = new MainWindow(privateWindow, restoreSession: _windows.Count == 0, startUrl: url);
+        place?.Invoke(window);
+        _windows.Add(window);
+
         window.Closed += (_, _) =>
         {
-            _private.Remove(window);
-            if (_private.Count == 0 && _normal is null) Shutdown();
+            _windows.Remove(window);
+            if (_windows.Count == 0) Shutdown();
         };
 
+        if (MainWindow is null) MainWindow = window;
         window.Show();
-        if (url is not null) window.OpenUrlInNewTab(url, activate: true);
         return window;
     }
 
-    public bool HasPrivateWindows => _private.Count > 0;
+    /// <summary>A private window: its own window, its own throwaway engine profile.</summary>
+    public MainWindow OpenPrivateWindow(string? url = null) => OpenWindow(url, privateWindow: true);
+
+    public bool HasPrivateWindows => _windows.Any(w => w.IsPrivate);
 
     /// <summary>Handles a command line that arrived from a second launch.</summary>
     private void OnCommandLine(string[] args)
@@ -217,8 +237,7 @@ public partial class App : Application
         Dispatcher.BeginInvoke(new Action(() =>
         {
             if (request.Private) OpenPrivateWindow(request.Url);
-            else if (request.Url is null && request.NewWindow) ShowBrowser();
-            else ShowBrowser(request.Url);
+            else ShowBrowser(request.Url, newWindow: request.NewWindow);
         }));
     }
 

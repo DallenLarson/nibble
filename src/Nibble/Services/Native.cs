@@ -221,4 +221,122 @@ public static class Native
             // Without it the taskbar stays where it is; being topmost still keeps the page whole.
         }
     }
+
+    // ---- dragging a tab: the pointer has to keep reporting while it is over the engine ----
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Point32
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out Point32 point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetCapture(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ReleaseCapture();
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
+
+    /// <summary>The pointer in physical screen pixels - the one coordinate system every window agrees on.</summary>
+    public static Point32 Cursor() => GetCursorPos(out var point) ? point : default;
+
+    public static int Distance(Point32 a, Point32 b)
+    {
+        var dx = a.X - b.X;
+        var dy = a.Y - b.Y;
+        return (int)Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    /// <summary>
+    /// Takes the mouse for this window. Needed because a tab can be dragged down over the
+    /// page surface, which is a child window of the engine: without capture the pointer
+    /// messages stop at that child and the drag would go deaf halfway through.
+    /// </summary>
+    public static void CaptureMouse(Window window)
+    {
+        try
+        {
+            var hwnd = Handle(window);
+            if (hwnd != IntPtr.Zero) SetCapture(hwnd);
+        }
+        catch
+        {
+            // Without capture the drag still works inside the strip; only the page area is lost.
+        }
+    }
+
+    public static void ReleaseMouse()
+    {
+        try { ReleaseCapture(); } catch { /* nothing to release */ }
+    }
+
+    /// <summary>A window's screen rectangle in physical pixels.</summary>
+    public static bool Bounds(Window window, out NativeRect rect)
+    {
+        rect = default;
+        try
+        {
+            var hwnd = Handle(window);
+            return hwnd != IntPtr.Zero && GetWindowRect(hwnd, out rect);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static bool Contains(NativeRect rect, Point32 point) =>
+        point.X >= rect.Left && point.X < rect.Right && point.Y >= rect.Top && point.Y < rect.Bottom;
+
+    private const int GwlExStyle = -20;
+    private const int WsExTransparent = 0x00000020;
+    private const int WsExToolWindow = 0x00000080;
+    private const int WsExLayered = 0x00080000;
+    private const int WsExNoActivate = 0x08000000;
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
+    private static extern int GetWindowStyleLong(IntPtr hwnd, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongW")]
+    private static extern int SetWindowStyleLong(IntPtr hwnd, int index, int value);
+
+    /// <summary>
+    /// Turns a window into pure decoration: clicks pass through it, it never takes focus, and
+    /// it stays out of Alt+Tab. Used for the tab that follows the pointer during a drag.
+    /// </summary>
+    public static void MakeFloatWindow(Window window)
+    {
+        try
+        {
+            var hwnd = Handle(window);
+            if (hwnd == IntPtr.Zero) return;
+            var style = GetWindowStyleLong(hwnd, GwlExStyle);
+            SetWindowStyleLong(hwnd, GwlExStyle,
+                style | WsExTransparent | WsExNoActivate | WsExToolWindow | WsExLayered);
+        }
+        catch
+        {
+            // Worst case the ghost takes clicks for the length of one drag.
+        }
+    }
+
+    /// <summary>Moves a window in physical pixels, leaving its size and z-order alone.</summary>
+    public static void MoveWindow(IntPtr hwnd, int x, int y)
+    {
+        if (hwnd == IntPtr.Zero) return;
+        try
+        {
+            SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0, 0x0001 /* SWP_NOSIZE */ | 0x0004 /* SWP_NOZORDER */);
+        }
+        catch
+        {
+            // Cosmetic.
+        }
+    }
 }
