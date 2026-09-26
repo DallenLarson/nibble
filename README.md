@@ -207,6 +207,10 @@ Everything lives in one header row, level with the tabs:
   sleeping-tab timer, and stays exempt for twenty seconds after the last sound, so a pause or a
   buffer does not get a video put to sleep mid-play.
 - **New tab button sits directly to the right of the last tab**, not pinned to the edge.
+- **A new tab puts the caret in the address bar**, so Ctrl+T and typing is one motion. The
+  recent-sites list waits for the first keystroke rather than covering the page the tab opened
+  on. A restored session, a tab opened behind you and a page you have clicked into all keep the
+  keyboard. Real keystrokes, real focus: **16 of 16 checks** in `tools/NewTabFocusProbe.ps1`.
 - **Minimize / maximize / close live on the right of the tab row** and take their
   traffic-light colour on hover: close **red**, minimize **yellow**, maximize **green**,
   with a dark glyph on the colour. The empty strip between the two is draggable, and
@@ -275,7 +279,7 @@ Enter advances, Escape skips, and skipping keeps every default. Answers land in
 | Private windows | Ctrl+Shift+N, a real off-the-record engine profile, its own look, shares one jar with other private windows, leaves nothing on disk |
 | New tab page | Hand-built offline page: pixel clock, pixel-art scene, quick tiles from bookmarks and history, rotating tips, animated tracker counter. Scales with window height, and its search box is its own layer so suggestions open *over* the tiles |
 | DECKRISE tile | `https://www.deckrise.net/` is pinned into the shortcut row by hand: it leads the row and is the only tile a private window shows. `PINNED` at the top of `Assets/newtab.html` |
-| Address bar | Smart address-vs-search parsing, live history suggestions, keyboard-navigable dropdown, bookmark star, https/http lock chip |
+| Address bar | Smart address-vs-search parsing, live history suggestions, keyboard-navigable dropdown, bookmark star, https/http lock chip, and **a new tab opens with the caret already in it** |
 | Command palette | Ctrl+K, 34 actions, tab/history/bookmark/closed-tab search, calculator, unit conversion |
 | Find and print | Ctrl+F find bar with a match counter, F3 to step, Ctrl+P print |
 | Tracker shield | Host-name blocker for 141 ad/tracker networks, per-tab counts, running "bytes saved" tally |

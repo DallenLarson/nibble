@@ -1,5 +1,22 @@
 # Nibble changelog
 
+## 1.2.1 — the caret is already where you were going to type
+
+**A new tab hands the address bar the caret, so Ctrl+T and typing is one motion.** A new tab
+used to open with the keyboard on the page: the first letter went nowhere until you reached
+for the address bar and clicked it. Now the page hands it over the moment it has painted, and
+the list of recent sites stays closed until the first keystroke instead of dropping over the
+page the tab opened on — typing still brings it up, one character in.
+
+It hangs off the page's own *ready* message rather than the click that opened the tab, because
+the engine takes the keyboard for its own window while a page paints, and *ready* is the last
+thing that happens after that. Nibble does this only for a tab it opened, in the window you are
+already in: a restored session, a tab opened behind you, a full-screen window with no address
+bar on screen, and a page you have clicked into all keep the keyboard exactly where you left
+it. Measured with real key presses and the UI Automation focused element — **16 of 16 checks**
+in `tools/NewTabFocusProbe.ps1`, two of which check the check itself: typing does open the
+recent-sites list, and clicking into the page does keep the caret there.
+
 ## 1.2.0 — tabs that go where you put them, links that open behind you, and sign-in that works
 
 **Drag a tab out of the strip and it becomes its own window.** Drag it sideways and the strip

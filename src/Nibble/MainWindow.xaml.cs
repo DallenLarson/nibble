@@ -42,12 +42,19 @@ public partial class MainWindow : Window
     private DispatcherTimer? _napTimer;
     private DispatcherTimer? _saveTimer;
     private bool _omniSuppress;
+    // Set for the single focus a new tab gives the address bar, so the list of recent sites
+    // does not drop over the page the moment it opens.
+    private bool _omniQuietFocus;
     private FrameworkElement? _popupAnchor;
     private readonly Native.SubclassProc _pageClickProc;
     private static readonly IntPtr PageClickSubclassId = 1;
     private List<OmniItem> _omniItems = [];
     private readonly List<Button> _omniRows = [];
     private int _omniSel = -1;
+    // The tab whose caret belongs in the address bar once the page has painted. Only the
+    // paths that open a fresh new tab page set it, so a restored session, a background tab
+    // and a page you clicked into never have the address bar take the keyboard back.
+    private ZTab? _omniFocusTab;
     private List<CommandResult> _paletteResults = [];
     private List<BrowserCommand> _commands = [];
     private readonly List<Button> _paletteRows = [];
@@ -444,6 +451,11 @@ public partial class MainWindow : Window
         Tabs.Add(tab);
 
         if (activate) Activate(tab);
+
+        // Ctrl+T and then typing is one motion: the address bar takes the caret as soon as
+        // the new tab page has painted, so the first keystroke is already the search.
+        if (activate && IsHomeUrl(url)) _omniFocusTab = tab;
+
         _ = InitTabAsync(tab, url);
 
         // Stretch the new tab into the strip once its container exists.
@@ -625,6 +637,7 @@ public partial class MainWindow : Window
         if (tab is null || !Tabs.Contains(tab)) return;
 
         if (remember && !tab.IsNewTab && !tab.IsBroken) _closed.Push((tab.Url, tab.Title));
+        if (ReferenceEquals(_omniFocusTab, tab)) _omniFocusTab = null;
 
         if (!_private) Store.TabsClosed++;
         var index = Tabs.IndexOf(tab);
@@ -973,6 +986,7 @@ public partial class MainWindow : Window
     {
         var index = Tabs.IndexOf(tab);
         if (index < 0) return;
+        if (ReferenceEquals(_omniFocusTab, tab)) _omniFocusTab = null;
 
         Tabs.Remove(tab);
         tab.View.Visibility = Visibility.Collapsed;
@@ -1694,6 +1708,7 @@ public partial class MainWindow : Window
             {
                 case "ready":
                     SendInit(tab);
+                    TakeOmniboxFocus(tab);
                     break;
                 case "query":
                     SendPageSuggestions(tab, Text("text"));
@@ -2097,15 +2112,52 @@ public partial class MainWindow : Window
         _active.View.Focus();
     }
 
-    private void FocusOmnibox()
+    private void FocusOmnibox() => FocusOmnibox(quiet: false);
+
+    /// <summary>
+    /// Puts the caret in the address bar with everything in it selected. <paramref name="quiet"/>
+    /// leaves the suggestion list closed: a tab that opened on its own hands the caret over and
+    /// gets out of the way, and the list is one keystroke or one click after that.
+    /// </summary>
+    private void FocusOmnibox(bool quiet)
     {
         _omniSuppress = true;
         if (_active is not null) Omni.Text = DisplayUrl(_active);
         _omniSuppress = false;
 
+        _omniQuietFocus = quiet;
         Omni.Focus();
         Omni.SelectAll();
-        ShowSuggestions(Omni.Text);
+        _omniQuietFocus = false;
+
+        if (quiet) HideSuggestions();
+        else ShowSuggestions(Omni.Text);
+    }
+
+    /// <summary>True for the built-in new tab page, however the caller spelled it.</summary>
+    private static bool IsHomeUrl(string url) =>
+        url.Equals(Urls.Home, StringComparison.OrdinalIgnoreCase) || Pages.IsNewTabPage(url);
+
+    /// <summary>
+    /// A new tab has been opened and its page has painted, so the caret goes into the address
+    /// bar, selected - type straight away and the search is already under way. This hangs off
+    /// the page's own "ready" message rather than the click that opened the tab, because the
+    /// engine takes the keyboard for its own window while a page paints and "ready" is the
+    /// last thing that happens after that.
+    /// </summary>
+    private void TakeOmniboxFocus(ZTab tab)
+    {
+        if (!ReferenceEquals(_omniFocusTab, tab)) return;
+        _omniFocusTab = null;
+
+        // Someone has already moved on: another tab is in front, another window has the
+        // keyboard, full screen has no address bar on screen, or find is asking for it.
+        if (!ReferenceEquals(tab, _active) || !IsActive || _fullscreen || FindPopup.IsOpen) return;
+
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+        {
+            if (ReferenceEquals(tab, _active) && IsActive && !_fullscreen) FocusOmnibox(quiet: true);
+        }));
     }
 
     // =====================================================================
@@ -3162,7 +3214,11 @@ public partial class MainWindow : Window
 
     private void HomeTab()
     {
-        if (_active is not null) Navigate(_active, Urls.Home);
+        if (_active is null) return;
+        Navigate(_active, Urls.Home);
+        // Landing on the home page is a search waiting to happen, so the caret goes to the
+        // address bar here too.
+        _omniFocusTab = _active;
     }
 
     private void CopyAddress()
@@ -3888,7 +3944,7 @@ public partial class MainWindow : Window
 
     private void Home_Click(object sender, RoutedEventArgs e)
     {
-        if (_active is not null) Navigate(_active, Urls.Home);
+        HomeTab();
     }
 
     private void Bookmark_Click(object sender, RoutedEventArgs e) => ToggleBookmark();
@@ -3980,6 +4036,11 @@ public partial class MainWindow : Window
     {
         AnimateUnderline(1);
         Juice.Stretch(OmniFrame, 0.009, 190);
+
+        // A tab that opens on its own hands the caret over without the recent-sites list
+        // dropping over the page: typing or a deliberate click asks for it.
+        if (_omniQuietFocus) return;
+
         ShowSuggestions(Omni.Text);
     }
 

@@ -20,7 +20,7 @@
 // Overridable from the command line (ISCC /DAppVersion=9.9.9), which is how the self-update
 // test builds a "newer release" without touching this file.
 #ifndef AppVersion
-#define AppVersion     "1.2.0"
+#define AppVersion     "1.2.1"
 #endif
 #define AppPublisher   "Dallen Larson"
 #define AppUrl         "https://github.com/DallenLarson/nibble"
