@@ -75,7 +75,27 @@ public static class Pages
           }, true);
           // Clicks land in the page's own window, so tell the shell about them: menus
           // opened over the content should close, exactly like in any other browser.
-          addEventListener('mousedown', () => w.postMessage({ type: 'click' }), true);
+          //
+          // A click on a link says more than that. Ctrl-click and the middle button mean
+          // "open this, but leave me where I am", and the right button is the link menu,
+          // which offers a window. The engine reports that something was opened, never how,
+          // so the gesture is named here and the shell asks for it by name.
+          const onLink = (e) => {
+            const path = e.composedPath ? e.composedPath() : [e.target];
+            for (const node of path) {
+              if (node && node.tagName === 'A' && (node.href || node.getAttribute('href'))) return true;
+            }
+            return false;
+          };
+          addEventListener('mousedown', (e) => {
+            w.postMessage({ type: 'click' });
+            w.postMessage({
+              type: 'gesture',
+              gesture: onLink(e) && e.button === 2
+                ? 'menu'
+                : (e.button === 1 || e.ctrlKey || e.metaKey) ? 'background' : 'plain'
+            });
+          }, true);
           addEventListener('wheel', () => w.postMessage({ type: 'click' }), { capture: true, passive: true });
         })();
         """;

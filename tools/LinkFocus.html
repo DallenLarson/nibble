@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>link focus</title>
+<style>body{background:#101012;color:#eee;font:14px system-ui;margin:0;display:grid;place-items:center;height:100vh}
+a{color:#a3e635}
+p{margin:34px 0}</style></head>
+<body><div style="text-align:center">
+<h1>you are reading this</h1>
+<p><a id="one" href="/focusone" target="_blank">a link that asks for its own tab</a></p>
+<p><a id="two" href="/focustwo" target="_blank">a second link that asks for its own tab</a></p>
+</div>
+<script>
+// The probe clicks these links with a real mouse, then reads this log back: the opener says
+// whether it is still the tab in front of the reader, and the pages it opened say whether they
+// were shown. Together those two answers are the whole question, "did the focus move?".
+const report = (o) => { try { fetch('/report', { method: 'POST', body: JSON.stringify(o) }); } catch (e) { } };
+const say = (kind) => report({ kind: kind, visible: document.visibilityState, focused: document.hasFocus() });
+document.addEventListener('visibilitychange', () => say('opener-visibility'));
+window.addEventListener('focus', () => say('opener-focus'));
+say('opener-loaded');
+</script>
+</body></html>

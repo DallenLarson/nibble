@@ -197,6 +197,12 @@ Everything lives in one header row, level with the tabs:
   opened it. (The engine only finishes starting once its window exists, so the window is shown
   before the page is handed over — building it first is what used to leave Google sign-in
   hanging with *missing initial state*.)
+- **Opening a link in a new tab keeps you where you are.** Ctrl-click, a middle-click and the
+  link menu's **Open link in new tab** open the tab behind you and leave you reading the page
+  you were on; a plain click on the same link still brings its tab to the front. The engine
+  never says which gesture opened a tab, so the page reports it and Nibble acts on that name.
+  The menu's **Open link in new window** opens a real window. Real clicks on a real desktop:
+  **15 of 15 checks** in `tools/LinkFocusProbe.ps1`.
 - **Sound is never slept on.** A tab that is playing audio is left alone by the
   sleeping-tab timer, and stays exempt for twenty seconds after the last sound, so a pause or a
   buffer does not get a video put to sleep mid-play.
@@ -264,7 +270,8 @@ Enter advances, Escape skips, and skipping keeps every default. Answers land in
 | Area | What you get |
 |---|---|
 | Tabs | Stretch-to-fit widths, favicons, **drag to reorder or to pull a tab out into its own window**, right-click menu (close others, close to the right, duplicate, pin, move to a window), big close mark, middle-click close, animated activation, sleeping-tab badge, session restore, Ctrl+Shift+T reopen |
-| Windows | Any number of them: one browser per user with command-line hand-off, URL on the command line, **pages that open windows get real windows** (sign-in flows, popups), remembered size/position, default-browser registration |
+| Opening links | Ctrl-click, middle-click and the link menu's **Open link in new tab** open it *behind* you, so you keep reading what you were reading; a plain click on the same link still brings its tab to the front |
+| Windows | Any number of them: one browser per user with command-line hand-off, URL on the command line, **pages that open windows get real windows** (sign-in flows, popups), the link menu's *Open link in new window* opens a real window, remembered size/position, default-browser registration |
 | Private windows | Ctrl+Shift+N, a real off-the-record engine profile, its own look, shares one jar with other private windows, leaves nothing on disk |
 | New tab page | Hand-built offline page: pixel clock, pixel-art scene, quick tiles from bookmarks and history, rotating tips, animated tracker counter. Scales with window height, and its search box is its own layer so suggestions open *over* the tiles |
 | DECKRISE tile | `https://www.deckrise.net/` is pinned into the shortcut row by hand: it leads the row and is the only tile a private window shows. `PINNED` at the top of `Assets/newtab.html` |

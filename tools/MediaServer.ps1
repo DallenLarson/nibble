@@ -71,6 +71,9 @@ $pages = @{
     "/one"      = Join-Path (Split-Path -Parent $Page) "Drag1.html"
     "/two"      = Join-Path (Split-Path -Parent $Page) "Drag2.html"
     "/three"    = Join-Path (Split-Path -Parent $Page) "Drag3.html"
+    "/focus"    = Join-Path (Split-Path -Parent $Page) "LinkFocus.html"
+    "/focusone" = Join-Path (Split-Path -Parent $Page) "LinkFocusTarget.html"
+    "/focustwo" = Join-Path (Split-Path -Parent $Page) "LinkFocusTarget2.html"
 }
 $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
 $listener.Start()

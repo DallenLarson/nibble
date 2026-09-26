@@ -54,6 +54,12 @@ public partial class MainWindow : Window
     private int _paletteSel;
     private bool _fullscreen;
     private bool _forceQuit;
+    // The last link gesture a page reported, so a new tab can tell "open this and leave me
+    // where I am" (ctrl-click, middle-click) from a plain click, and so the link menu can open
+    // the window it says it will. It holds until the page reports the next one, because the
+    // engine does not say which gesture opened a tab - only that something was opened.
+    private ZTab? _linkGestureTab;
+    private string _linkGesture = "plain";
     private double _popupCardWidth = 330;
     private Rect? _windowedBounds;
     private bool _wasMaximized;
@@ -536,6 +542,7 @@ public partial class MainWindow : Window
         core.FaviconChanged += (_, e) => OnFaviconChanged(tab, core, e);
         core.HistoryChanged += (_, e) => OnHistoryChanged(tab, core, e);
         core.NewWindowRequested += (_, e) => OnNewWindowRequested(tab, core, e);
+        core.ContextMenuRequested += (_, e) => OnContextMenuRequested(core, e);
         core.WebMessageReceived += (_, e) => OnWebMessage(tab, core, e);
         core.DownloadStarting += (_, e) => OnDownloadStarting(tab, core, e);
         core.ProcessFailed += (_, e) => OnProcessFailed(tab, core, e);
@@ -1208,6 +1215,13 @@ public partial class MainWindow : Window
     private void OnNavigationStarting(ZTab tab, CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs e)
     {
         tab.IsLoading = true;
+        // A page that navigated has no click outstanding: whatever gesture it reported last
+        // belonged to the page that is being left behind.
+        if (ReferenceEquals(_linkGestureTab, tab))
+        {
+            _linkGestureTab = null;
+            _linkGesture = "plain";
+        }
         // Inline fallbacks land on about:blank; those must not clear the broken state.
         if (!IsErrorPage(e.Uri) && !e.Uri.StartsWith("about:", StringComparison.OrdinalIgnoreCase))
             tab.IsBroken = false;
@@ -1427,29 +1441,83 @@ public partial class MainWindow : Window
 
     private void OnNewWindowRequested(ZTab tab, CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs e)
     {
-        // A plain link that asked for its own tab (target="_blank") is a tab. Anything shaped
-        // like window.open - a size, a toolbox, or a script rather than a click - is a window,
-        // because that is what sign-in flows are written against.
-        if (!WantsItsOwnWindow(e))
+        // Three things can ask for a page in a new place, and each gets what it meant. The link
+        // menu asks for a window, and gets one. A ctrl-click or a middle-click asks for a tab
+        // that leaves you where you are, and gets that. Anything else - a plain click on a
+        // target="_blank" link, a scripted window.open - asks for a tab in front of you, and
+        // gets one; a request that carried a size or a place of its own is a window, which is
+        // the shape every sign-in flow is written against.
+        if (!WindowShaped(e))
         {
-            e.Handled = true;
-            NewTab(e.Uri, true);
-            return;
+            if (LinkAsksForWindow(tab))
+            {
+                e.Handled = true;
+                NewWindow(e.Uri);
+                return;
+            }
+
+            if (e.IsUserInitiated || LinkGesture(tab) != "none")
+            {
+                e.Handled = true;
+                NewTab(e.Uri, !LinkOpensQuietly(tab));
+                return;
+            }
         }
 
         _ = OpenPopupAsync(sender, e);
     }
 
-    private static bool WantsItsOwnWindow(CoreWebView2NewWindowRequestedEventArgs e)
+    /// <summary>
+    /// The gesture the page last reported for this tab: "background" when the link was opened
+    /// to be left alone, "menu" when it came from the link menu, "plain" otherwise, and "none"
+    /// when the page has said nothing at all.
+    /// </summary>
+    private string LinkGesture(ZTab tab) => ReferenceEquals(_linkGestureTab, tab) ? _linkGesture : "none";
+
+    /// <summary>Ctrl-click and the middle button open a tab without taking you to it.</summary>
+    private bool LinkOpensQuietly(ZTab tab) => LinkGesture(tab) == "background";
+
+    /// <summary>The link menu offers a window, and that is the one thing that means one.</summary>
+    private bool LinkAsksForWindow(ZTab tab) => LinkGesture(tab) == "menu";
+
+    /// <summary>
+    /// The engine's link menu offers a window and nothing else, which is the wrong shape for a
+    /// browser with tabs: the tab goes at the top of the menu, where it belongs, and choosing
+    /// it leaves you on the page you were reading.
+    /// </summary>
+    private void OnContextMenuRequested(CoreWebView2 sender, CoreWebView2ContextMenuRequestedEventArgs e)
+    {
+        if (_env is null) return;
+        var target = e.ContextMenuTarget;
+        if (!target.HasLinkUri) return;
+        var uri = target.LinkUri;
+        if (string.IsNullOrWhiteSpace(uri)) return;
+
+        var item = _env.CreateContextMenuItem("Open link in new tab", null, CoreWebView2ContextMenuItemKind.Command);
+        item.CustomItemSelected += (_, _) => Dispatcher.BeginInvoke(new Action(() => NewTab(uri, activate: false)));
+        e.MenuItems.Insert(0, item);
+        // Handled stays false: that is what tells the engine to show the menu it was given.
+    }
+
+    /// <summary>
+    /// Whether the page asked for a window rather than a tab. Only what the page said counts:
+    /// a size or a place, or a toolbar it asked to be rid of. The engine reports a menu bar, a
+    /// toolbar and a status bar for a plain "open in a new tab" too, so those being true means
+    /// nothing - reading them as a window is what used to turn every _blank link into a window.
+    /// </summary>
+    private static bool WindowShaped(CoreWebView2NewWindowRequestedEventArgs e)
     {
         var features = e.WindowFeatures;
-        return !e.IsUserInitiated
-            || features.HasSize
+        return features.HasSize
             || features.HasPosition
-            || features.ShouldDisplayMenuBar
-            || features.ShouldDisplayToolbar
-            || features.ShouldDisplayStatus;
+            || !features.ShouldDisplayMenuBar
+            || !features.ShouldDisplayToolbar
+            || !features.ShouldDisplayStatus
+            || !features.ShouldDisplayScrollBars;
     }
+
+    private static bool WantsItsOwnWindow(CoreWebView2NewWindowRequestedEventArgs e) =>
+        !e.IsUserInitiated || WindowShaped(e);
 
     /// <summary>
     /// Opens a window a page asked for. Sign-in flows need this to be a real window: they talk
@@ -1645,6 +1713,16 @@ public partial class MainWindow : Window
                     break;
                 case "click":
                     ClosePopups();
+                    break;
+                case "gesture":
+                    // Noted, not acted on: the request it belongs to may never come, and the
+                    // note is replaced by the next gesture the page reports.
+                    _linkGestureTab = tab;
+                    _linkGesture =
+                        root.TryGetProperty("gesture", out var gesture) &&
+                        gesture.ValueKind == JsonValueKind.String
+                            ? gesture.GetString() ?? "plain"
+                            : "plain";
                     break;
                 case "copy":
                     try

@@ -1,6 +1,6 @@
 # Nibble changelog
 
-## 1.2.0 — tabs that go where you put them, and sign-in that works
+## 1.2.0 — tabs that go where you put them, links that open behind you, and sign-in that works
 
 **Drag a tab out of the strip and it becomes its own window.** Drag it sideways and the strip
 reorders around it, with a ghost of the tab following the pointer and a paler release once the
@@ -19,6 +19,20 @@ page reported nothing at all. The window is now shown first and handed over the 
 engine is ready. Measured with a probe page that opens a window and then asks it what it can
 see: `window.open` returned in 141 ms, the popup sees its opener, session storage survives the
 trip, and its message arrives at the opener with a source window attached — 6 of 6 checks.
+
+**Opening a link in a new tab no longer moves you.** Ctrl-click, a middle-click and the link
+menu all open the tab behind you, leaving you on the page you were reading; a plain click on
+the same link still takes you to the tab it opened. The link menu also has an *Open link in new
+tab* row at the top, which the engine's own menu does not offer at all, and its *Open link in
+new window* row opens a real window. Writing this turned up the matching mistake, made while
+this same release was being written: the test for whether a page had asked for a *window* read
+the engine's defaults - a menu bar, a toolbar, a status bar, all of which it reports for an
+ordinary "new tab" request too - as the shape of a window, so **a plain click on a
+`target="_blank"` link opened a window instead of a tab**. Measured with a probe that clicks
+the links with a real mouse - Chromium ignores window messages posted at it - and reads back
+both the window title and what each
+page reports about being shown: 15 of 15 checks. The three quiet opens never once showed their
+tab or hid the page you were on, and the run cost exactly one tab per click.
 
 **Tabs are easier to close.** The close mark went from a 12 px glyph on a 20 px button to a
 14 px glyph on a 26 px button, with a red hover tint. Right-clicking a tab now opens a tab

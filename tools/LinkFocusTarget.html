@@ -1,0 +1,11 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>opened behind you</title>
+<style>body{background:#101012;color:#eee;font:14px system-ui;margin:0;display:grid;place-items:center;height:100vh}</style></head>
+<body><h1>the tab that should have opened behind you</h1>
+<script>
+const report = (o) => { try { fetch('/report', { method: 'POST', body: JSON.stringify(o) }); } catch (e) { } };
+const say = (kind) => report({ kind: kind, page: 'behind', visible: document.visibilityState, focused: document.hasFocus() });
+document.addEventListener('visibilitychange', () => say('target-visibility'));
+setTimeout(() => say('target-loaded'), 50);
+</script>
+</body></html>

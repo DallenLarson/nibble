@@ -1,4 +1,5 @@
-**Tabs that go where you put them, sign-in that works, and sound that keeps playing.**
+**Tabs that go where you put them, links that open behind you, sign-in that works, and sound
+that keeps playing.**
 
 ## Drag a tab out
 
@@ -32,6 +33,23 @@ opener with a source window attached. **6 of 6 checks.**
 - **Right-click any tab** for: close tab · **close other tabs** · **close tabs to the right** ·
   duplicate · pin · move to a new window. The bulk actions show how many tabs they would close
   before you click. In the test, one click on *close other tabs* takes three tabs down to one.
+
+## Opening a link in a new tab leaves you where you are
+
+Ctrl-clicking a link, middle-clicking it, or choosing **Open link in new tab** from its menu now
+opens that tab *behind you*, and leaves you reading what you were reading. A plain click on the
+same link still takes you to the tab it opens — which is the difference the engine never tells a
+host about, so the page names the gesture and Nibble acts on the name.
+
+The link menu is part of this. The engine's own menu offers no way to open a link in a tab at
+all, so Nibble **puts Open link in new tab at the top of it**, and **Open link in new window**
+below it opens a real window.
+
+The probe clicks with a real mouse — Chromium ignores window messages posted at it — and reads
+back both the window title and what each page reports about being shown. **15 of 15 checks:**
+the tab opened by a ctrl-click, a middle-click or the menu is never shown, the page you were on
+never goes hidden, a plain click still brings its tab to the front, and the whole run costs
+exactly one tab per click.
 
 ## Sound keeps playing when you look away
 
