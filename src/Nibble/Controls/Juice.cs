@@ -319,19 +319,24 @@ public static class Juice
 
     private static void OnPressDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement element) Squash(element);
+        if (sender is not FrameworkElement element || element.GetValue(PressActiveProperty) is true) return;
+        element.SetValue(PressActiveProperty, true);
+        if (VisualTarget(element) is { } visual) Squash(visual);
     }
 
     private static void OnPressUp(object sender, MouseEventArgs e)
     {
         if (sender is not FrameworkElement element) return;
         if (sender is ButtonBase { IsPressed: true }) return;
-        Release(element);
+        if (element.GetValue(PressActiveProperty) is not true) return;
+        element.SetValue(PressActiveProperty, false);
+        if (VisualTarget(element) is { } visual) Release(visual);
     }
 
     private static void OnHoverEnter(object sender, MouseEventArgs e)
     {
-        if (sender is FrameworkElement element) Stretch(element);
+        if (sender is FrameworkElement element && element.GetValue(PressActiveProperty) is not true &&
+            VisualTarget(element) is { } visual) Stretch(visual);
     }
 
     private static void OnHoverLeave(object sender, MouseEventArgs e)
@@ -339,7 +344,21 @@ public static class Juice
         if (sender is not FrameworkElement element) return;
         // Coming out of a press, the release animation owns the transform.
         if (sender is ButtonBase { IsPressed: true }) return;
-        Release(element, HoverDepth, 300);
+        if (element.GetValue(PressActiveProperty) is true) return;
+        if (VisualTarget(element) is { } visual) Release(visual, HoverDepth, 300);
+    }
+
+    private static readonly DependencyProperty PressActiveProperty = DependencyProperty.RegisterAttached(
+        "PressActive", typeof(bool), typeof(Juice), new PropertyMetadata(false));
+
+    // The template's transparent root owns input. Its decorative child can deform without
+    // changing hit testing, hover, capture or the cursor, even at the very edge of a button.
+    // An unsupported template simply has no motion; never animate its input surface.
+    public static FrameworkElement? VisualTarget(FrameworkElement element)
+    {
+        if (element is not System.Windows.Controls.Control control) return null;
+        control.ApplyTemplate();
+        return control.Template?.FindName("PART_JuiceVisual", control) as FrameworkElement;
     }
 
     /// <summary>Returns the element's slide transform, creating one only if it has none.</summary>

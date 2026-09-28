@@ -452,17 +452,19 @@ public partial class MainWindow : Window
 
         if (activate) Activate(tab);
 
-        // Ctrl+T and then typing is one motion: the address bar takes the caret as soon as
-        // the new tab page has painted, so the first keystroke is already the search.
-        if (activate && IsHomeUrl(url)) _omniFocusTab = tab;
+        // Give Ctrl+T its caret immediately, before waiting for the engine or page.
+        if (activate && IsHomeUrl(url))
+        {
+            _omniFocusTab = tab;
+            FocusOmnibox(quiet: true);
+        }
 
         _ = InitTabAsync(tab, url);
 
         // Stretch the new tab into the strip once its container exists.
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
         {
-            if (TabStrip.ItemContainerGenerator.ContainerFromItem(tab) is FrameworkElement container)
-                Juice.PopIn(container, 0.06, 0, 340);
+            if (TabMotionVisual(tab) is { } visual) Juice.PopIn(visual, 0.06, 0, 340);
         }));
 
         return tab;
@@ -497,11 +499,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        Configure(tab);
-        Navigate(tab, url);
+        if (!Tabs.Contains(tab)) return;
+        await ConfigureAsync(tab);
+        if (!Tabs.Contains(tab)) return;
+        tab.IsReady = true;
+        Navigate(tab, tab.PendingNavigation ?? url);
+        tab.PendingNavigation = null;
     }
 
-    private async void Configure(ZTab tab)
+    private async Task ConfigureAsync(ZTab tab)
     {
         var core = tab.View.CoreWebView2;
         tab.Core = core;
@@ -543,6 +549,7 @@ public partial class MainWindow : Window
         // (Built-in pages are loaded from file URLs; no virtual host mapping needed.)
         try { await core.AddScriptToExecuteOnDocumentCreatedAsync(Pages.BridgeScript); }
         catch { /* optional: only powers keyboard shortcuts inside pages */ }
+        if (!Tabs.Contains(tab)) return;
 
         core.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
 
@@ -625,8 +632,7 @@ public partial class MainWindow : Window
 
         var suffix = _private ? " — Nibble (private)" : " — Nibble";
         Title = tab.Title == "New tab" ? (_private ? "Nibble (private)" : "Nibble") : tab.Title + suffix;
-        if (TabStrip.ItemContainerGenerator.ContainerFromItem(tab) is FrameworkElement container)
-            Juice.Pulse(container, 0.06, 320);
+        if (TabMotionVisual(tab) is { } visual) Juice.Pulse(visual, 0.06, 320);
 
         tab.View.Focus();
         ScrollActiveIntoView();
@@ -664,7 +670,11 @@ public partial class MainWindow : Window
         }
 
         // Squash flat before it disappears, then take it out of the strip.
-        if (container is not null) Juice.SquashOut(container, Remove, 0.16, 150);
+        if (container is not null)
+        {
+            container.IsHitTestVisible = false;
+            Juice.SquashOut(container, Remove, 0.16, 150);
+        }
         else Remove();
     }
 
@@ -674,9 +684,16 @@ public partial class MainWindow : Window
         for (var i = 0; i < Tabs.Count; i++)
         {
             if (i > 0) await Task.Delay(28);
-            if (TabStrip.ItemContainerGenerator.ContainerFromItem(Tabs[i]) is FrameworkElement container)
-                Juice.Pulse(container, 0.05, 340);
+            if (i >= Tabs.Count) break;
+            if (TabMotionVisual(Tabs[i]) is { } visual) Juice.Pulse(visual, 0.05, 340);
         }
+    }
+
+    private FrameworkElement? TabMotionVisual(ZTab tab)
+    {
+        if (TabStrip.ItemContainerGenerator.ContainerFromItem(tab) is not ContentPresenter presenter) return null;
+        presenter.ApplyTemplate();
+        return TabStrip.ItemTemplate.FindName("iconBox", presenter) as FrameworkElement;
     }
 
     // =====================================================================
@@ -1206,6 +1223,12 @@ public partial class MainWindow : Window
 
     private void Navigate(ZTab tab, string input)
     {
+        if (!IsHomeUrl(input) && ReferenceEquals(_omniFocusTab, tab)) _omniFocusTab = null;
+        if (!tab.IsReady)
+        {
+            tab.PendingNavigation = input;
+            return;
+        }
         var target = Urls.Resolve(input, App.Settings.SearchEngine);
         if (target.Equals(Urls.Home, StringComparison.OrdinalIgnoreCase))
         {
@@ -1727,6 +1750,7 @@ public partial class MainWindow : Window
                     OpenPath(Text("url"));
                     break;
                 case "click":
+                    if (ReferenceEquals(_omniFocusTab, tab)) _omniFocusTab = null;
                     ClosePopups();
                     break;
                 case "gesture":
@@ -2072,8 +2096,9 @@ public partial class MainWindow : Window
 
         HighlightOmni();
         SuggestionsPopup.Width = Math.Max(440, OmniFrame.ActualWidth);
+        var wasOpen = SuggestionsPopup.IsOpen;
         SuggestionsPopup.IsOpen = true;
-        if (SuggestionsPopup.Child is FrameworkElement card) Juice.PopIn(card, 0.045, -5, 300);
+        if (!wasOpen && SuggestionsPopup.Child is FrameworkElement card) Juice.PopIn(card, 0.045, -5, 300);
     }
 
     private void HighlightOmni()
@@ -2139,11 +2164,8 @@ public partial class MainWindow : Window
         url.Equals(Urls.Home, StringComparison.OrdinalIgnoreCase) || Pages.IsNewTabPage(url);
 
     /// <summary>
-    /// A new tab has been opened and its page has painted, so the caret goes into the address
-    /// bar, selected - type straight away and the search is already under way. This hangs off
-    /// the page's own "ready" message rather than the click that opened the tab, because the
-    /// engine takes the keyboard for its own window while a page paints and "ready" is the
-    /// last thing that happens after that.
+    /// Recover focus if the engine took it during startup. Never replace text already typed,
+    /// or reclaim the caret after the user clicked the page or submitted a navigation.
     /// </summary>
     private void TakeOmniboxFocus(ZTab tab)
     {
@@ -2156,7 +2178,9 @@ public partial class MainWindow : Window
 
         Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
         {
-            if (ReferenceEquals(tab, _active) && IsActive && !_fullscreen) FocusOmnibox(quiet: true);
+            if (ReferenceEquals(tab, _active) && IsActive && !_fullscreen &&
+                !FindPopup.IsOpen && !Omni.IsKeyboardFocusWithin && Omni.Text.Length == 0)
+                FocusOmnibox(quiet: true);
         }));
     }
 
@@ -3828,6 +3852,16 @@ public partial class MainWindow : Window
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == 0x0024 && !_fullscreen)
+        {
+            var dpi = VisualTreeHelper.GetDpi(this);
+            if (Native.ApplyMaximizedWorkArea(hwnd, lParam,
+                (int)Math.Ceiling(MinWidth * dpi.DpiScaleX), (int)Math.Ceiling(MinHeight * dpi.DpiScaleY)))
+            {
+                handled = true;
+                return IntPtr.Zero;
+            }
+        }
         if (msg == WmSetCursor && (int)(lParam.ToInt64() & 0xFFFF) == HtClient)
         {
             if (AnswerSetCursorFromPointer())
@@ -4044,7 +4078,6 @@ public partial class MainWindow : Window
     private void Omni_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
         AnimateUnderline(1);
-        Juice.Stretch(OmniFrame, 0.009, 190);
 
         // A tab that opens on its own hands the caret over without the recent-sites list
         // dropping over the page: typing or a deliberate click asks for it.
@@ -4056,7 +4089,6 @@ public partial class MainWindow : Window
     private void Omni_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
         AnimateUnderline(0);
-        Juice.Release(OmniFrame, 0.006, 300);
         if (_active is null) return;
         _omniSuppress = true;
         Omni.Text = DisplayUrl(_active);

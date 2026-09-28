@@ -19,12 +19,16 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <c:PixelPanel x:Name="panel" CornerSteps="2" CornerStep="3"
-                                  Fill="{TemplateBinding Background}"
-                                  Stroke="{DynamicResource ButtonStroke}"
-                                  StrokeThickness="{DynamicResource ButtonStrokeThickness}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </c:PixelPanel>
+                    <Grid Background="Transparent">
+                        <Grid x:Name="PART_JuiceVisual" IsHitTestVisible="False">
+                            <c:PixelPanel x:Name="panel" CornerSteps="2" CornerStep="3"
+                                          Fill="{TemplateBinding Background}"
+                                          Stroke="{DynamicResource ButtonStroke}"
+                                          StrokeThickness="{DynamicResource ButtonStrokeThickness}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </c:PixelPanel>
+                        </Grid>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="panel" Property="Fill"
@@ -63,11 +67,15 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid>
-                        <c:PixelPanel x:Name="panel" CornerSteps="0" CornerStep="1" Fill="Transparent"
-                                      Stroke="{DynamicResource ButtonStroke}"
-                                      StrokeThickness="{DynamicResource ButtonStrokeThickness}" />
-                        <ContentPresenter x:Name="glyph" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Grid Background="Transparent">
+                        <Grid x:Name="PART_JuiceVisual" IsHitTestVisible="False">
+                            <Grid>
+                                <c:PixelPanel x:Name="panel" CornerSteps="0" CornerStep="1" Fill="Transparent"
+                                              Stroke="{DynamicResource ButtonStroke}"
+                                              StrokeThickness="{DynamicResource ButtonStrokeThickness}" />
+                                <ContentPresenter x:Name="glyph" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Grid>
+                        </Grid>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -133,12 +141,16 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <c:PixelPanel x:Name="panel" Fill="Transparent"
-                                  Stroke="{DynamicResource ButtonStroke}"
-                                  StrokeThickness="{DynamicResource ButtonStrokeThickness}"
-                                  CornerSteps="2" CornerStep="2">
-                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
-                    </c:PixelPanel>
+                    <Grid Background="Transparent">
+                        <Grid x:Name="PART_JuiceVisual" IsHitTestVisible="False">
+                            <c:PixelPanel x:Name="panel" Fill="Transparent"
+                                          Stroke="{DynamicResource ButtonStroke}"
+                                          StrokeThickness="{DynamicResource ButtonStrokeThickness}"
+                                          CornerSteps="2" CornerStep="2">
+                                <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                            </c:PixelPanel>
+                        </Grid>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="panel" Property="Fill" Value="{DynamicResource AccentSoft}" />
@@ -234,11 +246,15 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid>
-                        <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}" Stroke="Transparent"
-                                      StrokeThickness="0" CornerSteps="2" CornerStep="3" Effect="{DynamicResource CardShadow}" />
-                        <ContentPresenter x:Name="content" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}" />
+                    <Grid Background="Transparent">
+                        <Grid x:Name="PART_JuiceVisual" IsHitTestVisible="False">
+                            <Grid>
+                                <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}" Stroke="Transparent"
+                                              StrokeThickness="0" CornerSteps="2" CornerStep="3" Effect="{DynamicResource CardShadow}" />
+                                <ContentPresenter x:Name="content" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Margin="{TemplateBinding Padding}" />
+                            </Grid>
+                        </Grid>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -270,12 +286,16 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}"
-                                  Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1"
-                                  CornerSteps="2" CornerStep="3">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}" />
-                    </c:PixelPanel>
+                    <Grid Background="Transparent">
+                        <Grid x:Name="PART_JuiceVisual" IsHitTestVisible="False">
+                            <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}"
+                                          Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1"
+                                          CornerSteps="2" CornerStep="3">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Margin="{TemplateBinding Padding}" />
+                            </c:PixelPanel>
+                        </Grid>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="panel" Property="Fill" Value="{DynamicResource Hover}" />
@@ -301,11 +321,15 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid>
-                        <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}"
-                                      Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1"
-                                      CornerSteps="3" CornerStep="4" Effect="{DynamicResource CardShadow}" />
-                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                    <Grid Background="Transparent">
+                        <Grid x:Name="PART_JuiceVisual" IsHitTestVisible="False">
+                            <Grid>
+                                <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}"
+                                              Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1"
+                                              CornerSteps="3" CornerStep="4" Effect="{DynamicResource CardShadow}" />
+                                <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                            </Grid>
+                        </Grid>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">

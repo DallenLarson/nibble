@@ -1,5 +1,19 @@
 # Nibble changelog
 
+## 2.0.0 — stable controls, immediate typing, reliable search
+
+- Squash and stretch animate decorative button layers with fixed hit areas. Hovering at an
+  edge no longer makes the animation repeatedly leave and re-enter itself. Tabs animate their
+  icons, and home-page inputs and links keep fixed rectangles.
+- New tabs focus the address bar immediately. A late page-ready message preserves text already
+  entered, and does not reclaim focus after a page click or submitted navigation.
+- WebView2 configuration completes before the first navigation. Search and page-message handlers
+  are installed before the new-tab page runs; submissions during startup are queued.
+- Maximizing uses the current monitor's working area for both the maximize button and Windows
+  snapping, leaving room for the taskbar. F11 retains its separate full-screen behavior.
+
+See `docs/release-notes-v2.0.0.md` for validation and remaining manual coverage.
+
 ## 1.2.1 — the caret goes where you asked for it
 
 **A new tab hands the address bar the caret, so Ctrl+T and typing is one motion.** A new tab

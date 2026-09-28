@@ -5,7 +5,7 @@
         Title="Nibble" Width="1220" Height="820" MinWidth="620" MinHeight="460"
         WindowStyle="None" Background="{DynamicResource WindowBg}"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
-        WindowStartupLocation="CenterScreen" Icon="/Assets/nibble.png"
+        WindowStartupLocation="CenterScreen" Icon="/Nibble;component/Assets/nibble.png"
         FontFamily="{StaticResource UIFont}">
 
     <WindowChrome.WindowChrome>
@@ -87,7 +87,7 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <Grid x:Name="iconBox" Grid.Column="0" Width="16" Height="16" Margin="0,0,9,0"
+                                            <Grid x:Name="iconBox" Grid.Column="0" Width="16" Height="16" Margin="0,0,9,0" IsHitTestVisible="False"
                                                   VerticalAlignment="Center">
                                                 <c:VectorIcon x:Name="fallback" Data="{x:Static c:Icons.Globe}"
                                                               Size="15" Foreground="{DynamicResource Ink3}"

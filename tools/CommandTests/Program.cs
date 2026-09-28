@@ -142,10 +142,60 @@ Check("empty query lists commands", empty.Count > 0 && empty[0].Kind == ResultKi
         Check("Reset returns the card to rest",
             Math.Abs(scale1.ScaleX - 1) < 1e-6 && Math.Abs(scale1.ScaleY - 1) < 1e-6 &&
             Math.Abs(slide1.Y) < 1e-6 && Math.Abs(element.Opacity - 1) < 1e-6);
+
+        var app = new System.Windows.Application();
+        app.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
+        { Source = new Uri("/Nibble;component/Themes/Light.xaml", UriKind.Relative) });
+        app.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
+        { Source = new Uri("/Nibble;component/Themes/Controls.xaml", UriKind.Relative) });
+        var host = new System.Windows.Window { Left = -10000, Top = -10000, Width = 140, Height = 80,
+            ShowActivated = false, ShowInTaskbar = false, WindowStyle = System.Windows.WindowStyle.None };
+        host.Show();
+        foreach (var key in new[] { "IconButton", "WindowButton", "PopupRowButton", "PrimaryButton", "GhostButton", "TileButton" })
+        {
+            var button = new Button { Style = (System.Windows.Style)app.FindResource(key), Width = 100, Height = 40, Content = "Test" };
+            host.Content = button;
+            host.UpdateLayout();
+            button.Measure(new System.Windows.Size(100, 40));
+            button.Arrange(new System.Windows.Rect(0, 0, 100, 40));
+            var visual = Juice.VisualTarget(button);
+            Check(key + " has a decorative animation target", visual is not null && !visual.IsHitTestVisible);
+            if (visual is null) continue;
+            var targetScale = Juice.EnsureScale(visual);
+            foreach (var factor in new[] { 0.5, 1.0, 1.5 })
+            {
+                targetScale.ScaleX = factor;
+                targetScale.ScaleY = 2 - factor;
+                var points = new[] { new System.Windows.Point(1, 1), new System.Windows.Point(99, 1),
+                    new System.Windows.Point(1, 39), new System.Windows.Point(99, 39), new System.Windows.Point(50, 20) };
+                Check(key + " keeps every hit edge at scale " + factor,
+                    points.All(p => button.InputHitTest(p) is not null) && button.RenderTransform.Value.IsIdentity);
+                Check(key + " never expands its hit area at scale " + factor,
+                    button.InputHitTest(new System.Windows.Point(-1, 20)) is null &&
+                    button.InputHitTest(new System.Windows.Point(101, 20)) is null);
+            }
+        }
+        var browser = new Nibble.MainWindow(restoreSession: false);
+        var tab = new Nibble.ZTab(new Microsoft.Web.WebView2.Wpf.WebView2());
+        var navigate = typeof(Nibble.MainWindow).GetMethod("Navigate",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        navigate.Invoke(browser, new object[] { tab, "first search" });
+        Check("search before engine readiness is retained", tab.PendingNavigation == "first search");
+        navigate.Invoke(browser, new object[] { tab, "second search" });
+        Check("latest startup navigation wins", tab.PendingNavigation == "second search");
+        Check("queued navigation does not pretend the page loaded", tab.Url == Urls.Home && !tab.IsReady);
+        tab.View.Dispose();
+        host.Close();
     });
     motion.SetApartmentState(ApartmentState.STA);
     motion.Start();
     motion.Join();
+}
+
+foreach (var engine in Urls.Engines)
+{
+    Check(engine.Name + " searches encode query text",
+        Urls.Resolve("cats & dogs + café", engine.Id) == string.Format(engine.Query, "cats%20%26%20dogs%20%2B%20caf%C3%A9"));
 }
 
 Console.WriteLine();

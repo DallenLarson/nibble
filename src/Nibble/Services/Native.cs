@@ -121,6 +121,34 @@ public static class Native
         public int Flags;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MinMaxInfo
+    {
+        public Point32 Reserved;
+        public Point32 MaxSize;
+        public Point32 MaxPosition;
+        public Point32 MinTrackSize;
+        public Point32 MaxTrackSize;
+    }
+
+    // WM_GETMINMAXINFO uses physical pixels, relative to the current monitor.
+    // Respect taskbars on every edge, including monitors with negative origins.
+    public static bool ApplyMaximizedWorkArea(IntPtr hwnd, IntPtr data, int minWidth, int minHeight)
+    {
+        var monitor = MonitorFromWindow(hwnd, 2);
+        var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+        if (data == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return false;
+        var limits = Marshal.PtrToStructure<MinMaxInfo>(data);
+        limits.MaxPosition.X = info.Work.Left - info.Monitor.Left;
+        limits.MaxPosition.Y = info.Work.Top - info.Monitor.Top;
+        limits.MaxSize.X = info.Work.Right - info.Work.Left;
+        limits.MaxSize.Y = info.Work.Bottom - info.Work.Top;
+        limits.MinTrackSize.X = Math.Max(limits.MinTrackSize.X, minWidth);
+        limits.MinTrackSize.Y = Math.Max(limits.MinTrackSize.Y, minHeight);
+        Marshal.StructureToPtr(limits, data, false);
+        return true;
+    }
+
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
 

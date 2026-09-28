@@ -235,7 +235,8 @@
     transform-origin: 50% 50%;
     transition: transform .34s var(--spring);
   }
-  .search-wrap:focus-within .field { transform: scale(1.012, 0.988); }
+  /* Input and link rectangles stay fixed; only non-interactive decoration deforms. */
+  .search-wrap:focus-within #searchIcon { transform: scale(1.08, 0.94); }
   .field .inner {
     position: absolute; inset: 1px; z-index: 1;
     background: var(--paper);
@@ -287,8 +288,9 @@
     transform-origin: 50% 50%;
     transition: transform .24s var(--spring), background .14s ease;
   }
-  .suggest .row:hover { transform: scale(1.014, 0.984); }
-  .suggest .row:active { transform: scale(0.986, 0.96); transition-duration: .1s; }
+  .suggest .row > span { pointer-events: none; transition: transform .24s var(--spring); }
+  .suggest .row:hover > span { transform: scale(1.014, 0.984); }
+  .suggest .row:active > span { transform: scale(0.986, 0.96); transition-duration: .1s; }
   .suggest .row .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
   .suggest .row .u { font-size: 11px; color: var(--ink-3); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .suggest .row.sel { background: var(--accent-soft); }
@@ -360,8 +362,8 @@
   }
   .tile-wrap:hover::after { opacity: 1; transform: translate(4px, 4px); }
   /* Lifting the tile stretches it taller and thinner; pressing squashes it flat and wide. */
-  .tile:hover { transform: translateY(-3px) scale(0.974, 1.036); border-color: var(--line-2); }
-  .tile:active { transform: translateY(0) scale(1.05, 0.92); transition-duration: .09s; }
+  .tile:hover { border-color: var(--line-2); }
+  .tile > * { pointer-events: none; }
   .tile .ico {
     display: grid; place-items: center; height: 26px; color: var(--ink);
     transform-origin: 50% 50%;
@@ -449,7 +451,7 @@
   .brand .wordmark { transition: transform .34s var(--spring); }
   .brand:hover .wordmark { transform: scale(1.03, 0.97); }
   .chip { transition: transform .3s var(--spring); }
-  .chip:hover { transform: scale(1.03, 0.97); }
+  .chip:hover > span { transform: scale(1.03, 0.97); pointer-events: none; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: .001s !important;
