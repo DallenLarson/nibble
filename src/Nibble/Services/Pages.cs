@@ -22,6 +22,10 @@ public static class Pages
     /// pages a real origin with no extra moving parts.)
     /// </summary>
     public static string NewTabPage => FileUrl("newtab.html");
+    public static string PlannerPage => FileUrl("planner.html");
+
+    public static bool IsPlannerPage(string source) => Uri.TryCreate(source, UriKind.Absolute, out var uri) &&
+        uri.GetLeftPart(UriPartial.Path).Equals(PlannerPage, StringComparison.OrdinalIgnoreCase);
 
     public static string ErrorUrl(string url, string message, string code) =>
         $"{FileUrl("error.html")}?u={Uri.EscapeDataString(url)}" +
@@ -107,6 +111,7 @@ public static class Pages
             Directory.CreateDirectory(Folder);
             var newTab = Build("newtab.html");
             var error = Build("error.html");
+            var planner = Build("planner.html");
             var mark = ReadEmbeddedBytes("nibble-mark.png");
             var wordmark = ReadEmbeddedBytes("nibble-wordmark.png");
             var themes = ThemeAssets();
@@ -117,7 +122,7 @@ public static class Pages
             var version = typeof(Pages).Assembly.GetName().Version?.ToString() ?? "0";
             var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
             [
-                .. Encoding.UTF8.GetBytes(version + "\u0000" + newTab + "\u0000" + error),
+                .. Encoding.UTF8.GetBytes(version + "\u0000" + newTab + "\u0000" + error + "\u0000" + planner),
                 .. mark, .. wordmark,
                 .. themes.SelectMany(t => Encoding.UTF8.GetBytes(t.Relative)).ToArray(),
                 .. themes.SelectMany(t => t.Bytes).ToArray()
@@ -128,6 +133,7 @@ public static class Pages
 
             File.WriteAllText(Path.Combine(Folder, "newtab.html"), newTab);
             File.WriteAllText(Path.Combine(Folder, "error.html"), error);
+            File.WriteAllText(Path.Combine(Folder, "planner.html"), planner);
             // The page's own copy of the badge: a relative <img> beats a data URI in the
             // markup, and the browser serves it straight from this folder.
             if (mark.Length > 0) File.WriteAllBytes(Path.Combine(Folder, "mark.png"), mark);

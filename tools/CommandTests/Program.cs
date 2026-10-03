@@ -199,5 +199,49 @@ foreach (var engine in Urls.Engines)
 }
 
 Console.WriteLine();
+// Navigation completion must not turn redirects, downloads or real documents into errors.
+var navigation = new NavigationState();
+var reset = Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ConnectionReset;
+navigation.Start(1, "https://example.com/old");
+navigation.Start(2, "https://example.com/new");
+Check("stale navigation cannot replace a newer page", !navigation.ShouldShowError(1, false, reset, 0));
+Check("current network failure still reports an error", navigation.ShouldShowError(2, false, reset, 0));
+Check("canceled navigation stays on its page", !navigation.ShouldShowError(2, false,
+    Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.OperationCanceled, 0));
+Check("aborted redirect is not a connection error", !navigation.ShouldShowError(2, false,
+    Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ConnectionAborted, 200));
+Check("HTTP error responses keep the site's document", !navigation.ShouldShowError(2, false, reset, 404));
+navigation.Content(2, false);
+Check("short documents, images and PDFs are preserved", !navigation.ShouldShowError(2, false, reset, 200));
+navigation.Start(3, "https://example.com/file");
+navigation.Download("https://example.com/file");
+Check("downloads do not become connection errors", !navigation.ShouldShowError(3, false, reset, 0));
+Check("local PDF path accepts spaces", Urls.Resolve(@"C:\Documents\My PDF.pdf", "google") == "file:///C:/Documents/My%20PDF.pdf");
+Check("about:blank remains a valid address", Urls.Resolve("about:blank", "google") == "about:blank");
+
+var plannerFolder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "NibblePlannerTests-" + Guid.NewGuid());
+var plannerPath = System.IO.Path.Combine(plannerFolder, "planner.json");
+var planner = new PlannerStore(plannerPath);
+System.Text.Json.JsonElement Item(object value) => System.Text.Json.JsonSerializer.SerializeToElement(value);
+var noteId = Guid.NewGuid().ToString();
+planner.Apply("save-note", Item(new { id = noteId, title = "Ideas", body = "<script>not HTML</script>\nSecond line" }));
+Check("notes persist across store instances", new PlannerStore(plannerPath).Read().Notes.Single().Body.Contains("Second line"));
+var eventId = Guid.NewGuid().ToString();
+planner.Apply("save-event", Item(new { id = eventId, title = "Meeting", start = "2026-10-03T09:00", end = "2026-10-03T10:00", details = "Agenda" }));
+Check("events preserve times and notes", planner.Read().Events.Single().Start == "2026-10-03T09:00" && planner.Read().Notes.Count == 1);
+var rejected = false;
+try { planner.Apply("save-event", Item(new { id = eventId, title = "Meeting", start = "2026-10-03T10:00", end = "2026-10-03T09:00", details = "" })); }
+catch (ArgumentException) { rejected = true; }
+Check("invalid time ranges cannot overwrite an event", rejected && planner.Read().Events.Single().End == "2026-10-03T10:00");
+planner.Apply("delete-note", Item(new { id = noteId }));
+Check("note deletion leaves events intact", new PlannerStore(plannerPath).Read().Notes.Count == 0 && planner.Read().Events.Count == 1);
+var memory = new PlannerStore(null);
+memory.Apply("save-note", Item(new { id = noteId, title = "Private", body = "Only here" }));
+Check("private planner is isolated", new PlannerStore(null).Read().Notes.Count == 0 && planner.Read().Notes.Count == 0);
+System.IO.File.WriteAllText(plannerPath, "broken file");
+try { new PlannerStore(plannerPath).Apply("delete-note", Item(new { id = noteId })); }
+catch (System.Text.Json.JsonException) { }
+Check("unreadable planner is never overwritten", System.IO.File.ReadAllText(plannerPath) == "broken file");
+System.IO.Directory.Delete(plannerFolder, recursive: true);
 Console.WriteLine(failures == 0 ? "ALL COMMAND TESTS PASSED" : $"{failures} TEST(S) FAILED");
 return failures == 0 ? 0 : 1;

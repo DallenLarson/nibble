@@ -7,7 +7,8 @@
 #   Control switched on refuses to load freshly built DLLs
 # - the build-fact check inspects the published browser, if dist/ has one
 param(
-    [switch]$SkipBuildFacts
+    [switch]$SkipBuildFacts,
+    [switch]$BrowserIntegration
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,6 +48,18 @@ Run "private home page (13)" {
 Run "water physics (11)" {
     & node (Join-Path $root "tools\WaterPhysicsTest.js")
     if ($LASTEXITCODE -ne 0) { throw "WaterPhysicsTest failed" }
+}
+
+if ($BrowserIntegration) {
+    Run "WebView2 integration: navigation, PDFs, suggestions, notes and calendar" {
+        $browserOut = Join-Path $scratch "browser"
+        & dotnet publish (Join-Path $root "tools\BrowserTests\BrowserTests.csproj") -c Release -r win-x64 `
+            --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o $browserOut -v q | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "BrowserTests did not build" }
+        & (Join-Path $browserOut "BrowserTests.exe")
+        if ($LASTEXITCODE -ne 0) { throw "BrowserTests failed" }
+    }
 }
 
 if (-not $SkipBuildFacts) {

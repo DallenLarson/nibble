@@ -16,6 +16,7 @@ public sealed class ZTab : INotifyPropertyChanged
     public CoreWebView2? Core { get; set; }
     public bool IsReady { get; set; }
     public string? PendingNavigation { get; set; }
+    public NavigationState Navigation { get; } = new();
 
     /// <summary>The engine's original user agent, kept so compatibility mode can be undone.</summary>
     public string? DefaultUserAgent { get; set; }

@@ -26,6 +26,7 @@ namespace Nibble;
 public partial class MainWindow : Window
 {
     public ObservableCollection<ZTab> Tabs { get; } = [];
+    private readonly PlannerStore _privatePlanner = new(null);
 
     private static readonly JsonSerializerOptions PageJson = new()
     {
@@ -233,7 +234,7 @@ public partial class MainWindow : Window
         // Note: CalculateNativeWinOcclusion is deliberately NOT disabled, so the engine
         // stops compositing while its window is occluded (saves CPU/battery).
         var arguments = string.Join(' ',
-            "--disable-extensions", "--disable-sync", "--no-first-run", "--no-default-browser-check",
+            "--disable-sync", "--no-first-run", "--no-default-browser-check",
             "--disable-background-networking", "--disable-component-update", "--disable-domain-reliability",
             "--disable-breakpad", "--disable-search-engine-choice-screen", "--disk-cache-size=268435456",
             // Privacy switches, on in every window:
@@ -254,7 +255,9 @@ public partial class MainWindow : Window
             // three layers down when the machine has no WebView2 at all.
             _ = CoreWebView2Environment.GetAvailableBrowserVersionString(null);
 
-            var options = new CoreWebView2EnvironmentOptions(arguments);
+            // Disable user extensions through the supported API, without disabling the
+            // runtime's component extensions (including its PDF viewer).
+            var options = new CoreWebView2EnvironmentOptions(arguments) { AreBrowserExtensionsEnabled = false };
             _env = await CoreWebView2Environment.CreateAsync(
                 browserExecutableFolder: null,
                 userDataFolder: Path.Combine(Store.DataDir, "WebView2"),
@@ -520,7 +523,7 @@ public partial class MainWindow : Window
         settings.IsSwipeNavigationEnabled = true;
         settings.IsPasswordAutosaveEnabled = false;
         settings.IsGeneralAutofillEnabled = false;
-        settings.IsBuiltInErrorPageEnabled = false;
+        settings.IsBuiltInErrorPageEnabled = true;
 
         try
         {
@@ -555,6 +558,7 @@ public partial class MainWindow : Window
 
         core.WebResourceRequested += (_, e) => OnWebResourceRequested(tab, core, e);
         core.NavigationStarting += (_, e) => OnNavigationStarting(tab, core, e);
+        core.ContentLoading += (_, e) => tab.Navigation.Content(e.NavigationId, e.IsErrorPage);
         core.SourceChanged += (_, e) => OnSourceChanged(tab, core, e);
         core.NavigationCompleted += (_, e) => OnNavigationCompleted(tab, core, e);
         core.DocumentTitleChanged += (_, e) => OnTitleChanged(tab, core, e);
@@ -1230,6 +1234,9 @@ public partial class MainWindow : Window
             return;
         }
         var target = Urls.Resolve(input, App.Settings.SearchEngine);
+        if (target.StartsWith("nibble://notes", StringComparison.OrdinalIgnoreCase) ||
+            target.StartsWith("nibble://calendar", StringComparison.OrdinalIgnoreCase))
+            target = Pages.PlannerPage + (target.StartsWith("nibble://calendar", StringComparison.OrdinalIgnoreCase) ? "#calendar" : "#notes");
         if (target.Equals(Urls.Home, StringComparison.OrdinalIgnoreCase))
         {
             tab.Url = Urls.Home;
@@ -1249,8 +1256,25 @@ public partial class MainWindow : Window
         Navigate(tab, string.Format(engine.Query, Uri.EscapeDataString(query)));
     }
 
+    private void OpenPdf()
+    {
+        var picker = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Open a PDF in Nibble", Filter = "PDF documents (*.pdf)|*.pdf", CheckFileExists = true
+        };
+        if (picker.ShowDialog(this) == true) NewTab(new Uri(picker.FileName).AbsoluteUri, true);
+    }
+
+    private void OpenDownloadedFile(string path)
+    {
+        if (Path.GetExtension(path).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+            NewTab(new Uri(path).AbsoluteUri, true);
+        else OpenPath(path);
+    }
+
     private void OnNavigationStarting(ZTab tab, CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs e)
     {
+        tab.Navigation.Start(e.NavigationId, e.Uri);
         tab.IsLoading = true;
         // A page that navigated has no click outstanding: whatever gesture it reported last
         // belonged to the page that is being left behind.
@@ -1290,14 +1314,15 @@ public partial class MainWindow : Window
         UpdateStar(tab);
     }
 
-    private async void OnNavigationCompleted(ZTab tab, CoreWebView2 sender, CoreWebView2NavigationCompletedEventArgs e)
+    private void OnNavigationCompleted(ZTab tab, CoreWebView2 sender, CoreWebView2NavigationCompletedEventArgs e)
     {
+        if (!Tabs.Contains(tab) || e.NavigationId != tab.Navigation.Id) return;
         tab.IsLoading = false;
         if (ReferenceEquals(tab, _active)) Loader.IsActive = false;
 
-        if (!e.IsSuccess && e.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
+        if (tab.Navigation.ShouldShowError(e.NavigationId, e.IsSuccess, e.WebErrorStatus, e.HttpStatusCode))
         {
-            var failed = tab.Url;
+            var failed = tab.Navigation.Url;
             var onErrorPage = IsErrorPage(sender.Source);
             Store.LogError($"navigation failed: {e.WebErrorStatus} url={failed} source={sender.Source}");
 
@@ -1313,17 +1338,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            // If the engine actually rendered something, that beats our error page.
-            if (await HasRenderedContentAsync(sender))
-            {
-                tab.IsBroken = false;
-                ShowToast("That page complained",
-                    $"{Urls.PrettyHost(failed)} reported a problem, but part of it loaded.",
-                    Icons.Sparkle, null, 4200);
-                UpdateNavButtons(tab);
-                return;
-            }
-
+            tab.Url = failed;
             tab.IsBroken = true;
             tab.Title = "This page didn't load";
             sender.Navigate(Pages.ErrorUrl(failed, FailureReason(failed, e.WebErrorStatus), e.WebErrorStatus.ToString()));
@@ -1331,7 +1346,7 @@ public partial class MainWindow : Window
         }
 
         // Private windows deliberately write no history and no page counters.
-        if (!_private && !tab.IsNewTab && !tab.IsBroken && !IsErrorPage(sender.Source) &&
+        if (e.IsSuccess && !_private && !tab.IsNewTab && !tab.IsBroken && !IsErrorPage(sender.Source) &&
             !sender.Source.StartsWith("about:", StringComparison.OrdinalIgnoreCase))
         {
             Store.Record(tab.Url, string.IsNullOrWhiteSpace(tab.Title) ? Urls.PrettyHost(tab.Url) : tab.Title);
@@ -1359,21 +1374,6 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             Store.LogError($"inline fallback failed: {ex.GetType().Name}: {ex.Message}");
-        }
-    }
-
-    /// <summary>True when the failed document still has readable text on screen.</summary>
-    private static async Task<bool> HasRenderedContentAsync(CoreWebView2 core)
-    {
-        try
-        {
-            var raw = await core.ExecuteScriptAsync(
-                "(function(){var b=document.body;if(!b)return 0;return ((b.innerText||'').length);})()");
-            return int.TryParse(raw?.Trim().Trim('"'), out var length) && length > 40;
-        }
-        catch
-        {
-            return false;
         }
     }
 
@@ -1642,6 +1642,7 @@ public partial class MainWindow : Window
     private void OnDownloadStarting(ZTab tab, CoreWebView2 sender, CoreWebView2DownloadStartingEventArgs e)
     {
         var operation = e.DownloadOperation;
+        tab.Navigation.Download(operation.Uri);
         var name = "download";
         try { name = Path.GetFileName(operation.ResultFilePath); } catch { }
 
@@ -1666,7 +1667,7 @@ public partial class MainWindow : Window
                 download.Finished = true;
                 RemoveToast(download.Toast);
                 ShowToast("Downloaded", name, Icons.Download,
-                    () => OpenPath(operation.ResultFilePath), 6500);
+                    () => OpenDownloadedFile(operation.ResultFilePath), 6500);
             }
             else if (operation.State == CoreWebView2DownloadState.Interrupted)
             {
@@ -1729,6 +1730,24 @@ public partial class MainWindow : Window
 
             switch (typeElement.GetString())
             {
+                case "planner":
+                    // Only our exact local planner document can read or modify personal data.
+                    if (!Pages.IsPlannerPage(e.Source) || !Pages.IsPlannerPage(sender.Source)) return;
+                    var action = Text("action");
+                    try
+                    {
+                        var store = _private ? _privatePlanner : PlannerStore.Shared;
+                        var data = action == "load" ? store.Read() : store.Apply(action, root.GetProperty("item"));
+                        sender.PostWebMessageAsJson(JsonSerializer.Serialize(new
+                        { Type = "planner-state", Action = action, Data = data, Private = _private,
+                          Accent = Accent.CurrentHex, AccentSoft = Accent.SoftHex, AccentInk = Accent.InkHex }, PageJson));
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException or KeyNotFoundException)
+                    {
+                        sender.PostWebMessageAsJson(JsonSerializer.Serialize(new
+                        { Type = "planner-state", Error = "Could not save or load your planner. " + ex.Message }, PageJson));
+                    }
+                    break;
                 case "ready":
                     SendInit(tab);
                     TakeOmniboxFocus(tab);
@@ -2106,6 +2125,7 @@ public partial class MainWindow : Window
         var selected = (Brush)FindResource("AccentSoft");
         for (var i = 0; i < _omniRows.Count; i++)
             _omniRows[i].Background = i == _omniSel ? selected : Brushes.Transparent;
+        if (_omniSel >= 0 && _omniSel < _omniRows.Count) _omniRows[_omniSel].BringIntoView();
     }
 
     private void HideSuggestions()
@@ -2227,6 +2247,7 @@ public partial class MainWindow : Window
             case "r" when ctrl: ReloadActive(); return true;
             case "f" when ctrl: ShowFindBar(); return true;
             case "p" when ctrl: PrintPage(); return true;
+            case "o" when ctrl: OpenPdf(); return true;
             case "f3": RunFind(forward: !(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))); return true;
             case "tab" when ctrl && shift: CycleTab(-1); return true;
             case "tab" when ctrl: CycleTab(1); return true;
@@ -2505,6 +2526,8 @@ public partial class MainWindow : Window
         MenuList.Children.Clear();
 
         MenuList.Children.Add(PopupRow(Icons.Plus, "New tab", "Ctrl+T", () => { ClosePopups(); NewTab(Urls.Home, true); }));
+        MenuList.Children.Add(PopupRow(Icons.Copy, "Open PDF", "Ctrl+O", () => { ClosePopups(); OpenPdf(); }));
+        MenuList.Children.Add(PopupRow(Icons.Copy, "Notes & calendar", "", () => { ClosePopups(); NewTab("nibble://notes", true); }));
         MenuList.Children.Add(PopupRow(Icons.Maximize, "New window", "Ctrl+N", () => NewWindow()));
         MenuList.Children.Add(PopupRow(Icons.Shield, "New private window",
             "Ctrl+Shift+N · nothing is saved", () => NewPrivateWindow()));
@@ -2703,7 +2726,7 @@ public partial class MainWindow : Window
                 var item = download;
                 MenuList.Children.Add(PopupRow(Icons.Download, item.Name,
                     item.Finished ? "open" : "in progress",
-                    item.Finished ? () => { ClosePopups(); OpenPath(item.Operation.ResultFilePath); } : null));
+                    item.Finished ? () => { ClosePopups(); OpenDownloadedFile(item.Operation.ResultFilePath); } : null));
             }
         }
 
@@ -4115,6 +4138,7 @@ public partial class MainWindow : Window
 
             case Key.Down:
                 e.Handled = true;
+                if (!SuggestionsPopup.IsOpen) ShowSuggestions(Omni.Text);
                 if (_omniRows.Count > 0)
                 {
                     _omniSel = Math.Min(_omniSel + 1, _omniRows.Count - 1);
@@ -4124,9 +4148,10 @@ public partial class MainWindow : Window
 
             case Key.Up:
                 e.Handled = true;
+                if (!SuggestionsPopup.IsOpen) ShowSuggestions(Omni.Text);
                 if (_omniRows.Count > 0)
                 {
-                    _omniSel = Math.Max(_omniSel - 1, 0);
+                    _omniSel = _omniSel < 0 ? _omniRows.Count - 1 : Math.Max(_omniSel - 1, -1);
                     HighlightOmni();
                 }
                 break;

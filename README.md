@@ -42,7 +42,7 @@ drift away from the app.
 ## Install
 
 **[Download the installer](https://github.com/DallenLarson/nibble/releases/latest)** —
-`Nibble-2.0.0-Setup.exe`, 2.8 MB. (`Nibble.exe` on its own is there too, for a machine you
+`Nibble-2.1.0-Setup.exe`. (`Nibble.exe` on its own is there too, for a machine you
 would rather not install to.)
 
 It is a per-user Inno Setup installer — no administrator prompt, files in
@@ -55,7 +55,7 @@ Build the browser and the installer in one command:
 ```
 powershell -File tools/package.ps1
   -> dist/Nibble.exe              under 2.2 MB, the whole browser
-  -> dist/Nibble-2.0.0-Setup.exe  the installer
+  -> dist/Nibble-2.1.0-Setup.exe  the installer
 ```
 
 That needs the .NET SDK, and [Inno Setup 6](https://jrsoftware.org/isdl.php) for the installer
@@ -705,7 +705,7 @@ Windows-only, and needed for anything that touches the shell:
 
 ```
 powershell -File tools/SmokeTest.ps1   -Exe dist\Nibble.exe -Profile scratch\smoke-profile
-powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-2.0.0-Setup.exe
+powershell -File tools/InstallerTest.ps1 -Setup dist\Nibble-2.1.0-Setup.exe
 powershell -File tools/UpdateTest.ps1            # builds a 9.9.9 "release" and updates into it
 powershell -File tools/FindProbe.ps1   -Exe src\Nibble\bin\Release\net8.0-windows\win-x64\Nibble.exe
 ```

@@ -1,5 +1,17 @@
 # Nibble changelog
 
+## 2.1.0 — browsing reliability, PDFs, notes and calendar
+
+- Ignore superseded/canceled navigation completions instead of replacing a newer page with a
+  connection error. Preserve actual documents, HTTP error responses, and download handoffs.
+- Show the address-bar selection when using Up/Down, and reopen suggestions with the arrow keys.
+- Keep the runtime's PDF viewer available; open local PDFs with Ctrl+O and downloaded PDFs in tabs.
+- Add Notes and Calendar links on the home page. Notes autosave; calendar events have editable
+  titles, start/end dates and times, and details. Both are stored locally, with memory-only
+  planners in private windows. No cloud sync or reminder notifications.
+
+See `docs/release-notes-v2.1.0.md` for validation and limitations.
+
 ## 2.0.0 — stable controls, immediate typing, reliable search
 
 - Squash and stretch animate decorative button layers with fixed hit areas. Hovering at an

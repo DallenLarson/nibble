@@ -27,6 +27,7 @@ public static partial class Urls
     public static bool LooksLikeAddress(string input)
     {
         input = input.Trim();
+        if (System.IO.Path.IsPathFullyQualified(input) && !input.Contains("://", StringComparison.Ordinal)) return true;
         if (input.Length == 0 || input.Contains(' ')) return false;
         if (input.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) return true;
         if (input.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) return true;
@@ -43,6 +44,9 @@ public static partial class Urls
     {
         input = input.Trim();
         if (input.Length == 0) return Home;
+        if (System.IO.Path.IsPathFullyQualified(input) && !input.Contains("://", StringComparison.Ordinal))
+            return new Uri(input).AbsoluteUri;
+        if (input.StartsWith("about:", StringComparison.OrdinalIgnoreCase)) return input;
         if (input.StartsWith("nibble://", StringComparison.OrdinalIgnoreCase)) return input;
         if (input.StartsWith("zest://", StringComparison.OrdinalIgnoreCase)) return Home; // legacy bookmark/session
         if (input.Contains("://", StringComparison.Ordinal)) return input;

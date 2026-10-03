@@ -143,7 +143,7 @@
                 <ControlTemplate TargetType="Button">
                     <Grid Background="Transparent">
                         <Grid x:Name="PART_JuiceVisual" IsHitTestVisible="False">
-                            <c:PixelPanel x:Name="panel" Fill="Transparent"
+                            <c:PixelPanel x:Name="panel" Fill="{TemplateBinding Background}"
                                           Stroke="{DynamicResource ButtonStroke}"
                                           StrokeThickness="{DynamicResource ButtonStrokeThickness}"
                                           CornerSteps="2" CornerStep="2">
