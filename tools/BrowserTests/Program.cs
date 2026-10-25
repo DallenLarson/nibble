@@ -64,6 +64,39 @@ internal static class Program
                 await Until(async () => await Js("!!document.querySelector('.planner-links')") == "true");
                 Check("home offers notes and calendar", await Js("document.querySelectorAll('.planner-links a').length") == "2");
 
+                var background = (ZTab)Call(window, "NewTab", "about:blank", false)!;
+                await Until(() => Task.FromResult(background.IsReady && !background.IsLoading));
+                var strip = (ItemsControl)window.FindName("TabStrip");
+                strip.UpdateLayout();
+                var tabAnchor = (FrameworkElement)strip.ItemContainerGenerator.ContainerFromItem(background);
+                var tabMenu = (StackPanel)window.FindName("MenuList");
+                void RightClickTab()
+                {
+                    Call(window, "Tab_PreviewMouseRightButtonUp", tabAnchor,
+                        new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Right)
+                            { RoutedEvent = UIElement.PreviewMouseRightButtonUpEvent });
+                }
+                Button MenuItem(string label) => tabMenu.Children.OfType<Button>()
+                    .Single(b => AutomationProperties.GetName(b) == label);
+                RightClickTab();
+                MenuItem("Mute tab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await Until(() => Task.FromResult(background.Core!.IsMuted && background.IsMuted));
+                Check("right-click mute targets background tab without switching tabs",
+                    tab.IsActive && !background.IsActive && !core.IsMuted);
+                background.Core!.Navigate("data:text/html,<title>Muted navigation</title>");
+                await Until(() => Task.FromResult(background.Title == "Muted navigation"));
+                Check("tab stays muted after navigation", background.Core.IsMuted && background.IsMuted);
+                RightClickTab();
+                MenuItem("Unmute tab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await Until(() => Task.FromResult(!background.Core.IsMuted && !background.IsMuted));
+                Check("right-click offers unmute and restores audio", !core.IsMuted);
+                Call(window, "ToggleMuteSite");
+                await Until(() => Task.FromResult(core.IsMuted && tab.IsMuted));
+                Check("existing mute command updates tab indicator state", !background.Core.IsMuted);
+                Call(window, "ToggleMuteSite");
+                await Until(() => Task.FromResult(!core.IsMuted && !tab.IsMuted));
+                Call(window, "CloseTab", background, false);
+
                 var omni = (TextBox)window.FindName("Omni");
                 Call(window, "ShowSuggestions", "example.com");
                 var key = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Down)

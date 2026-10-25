@@ -88,6 +88,13 @@ public sealed class ZTab : INotifyPropertyChanged
         set => Set(ref _isAudible, value);
     }
 
+    private bool _isMuted;
+    public bool IsMuted
+    {
+        get => _isMuted;
+        set => Set(ref _isMuted, value);
+    }
+
     /// <summary>
     /// When sound was last heard from this tab. A tab that just went quiet is still treated as
     /// playing, so a pause or a buffer does not hand it to the nap sweep.

@@ -574,6 +574,8 @@ public partial class MainWindow : Window
         core.PermissionRequested += (_, e) => OnPermissionRequested(tab, core, e);
         core.ContainsFullScreenElementChanged += (_, _) => SetFullscreen(core.ContainsFullScreenElement);
         core.IsDocumentPlayingAudioChanged += (_, _) => OnAudioChanged(tab, core);
+        core.IsMutedChanged += (_, _) => tab.IsMuted = core.IsMuted;
+        core.IsMuted = tab.IsMuted;
 
         // A page must never hold the browser hostage. Closing a tab or the window is
         // unconditional: a beforeunload "leave site?" prompt is accepted for you rather
@@ -3334,10 +3336,16 @@ public partial class MainWindow : Window
 
     private void ToggleMuteSite()
     {
-        if (_active?.Core is null) return;
-        var muted = !_active.Core.IsMuted;
-        _active.Core.IsMuted = muted;
-        ShowToast(muted ? "Site muted" : "Site unmuted", _active.Title,
+        if (_active is not null) ToggleMuteTab(_active);
+    }
+
+    private void ToggleMuteTab(ZTab tab)
+    {
+        if (!Tabs.Contains(tab)) return;
+        var muted = !(tab.Core?.IsMuted ?? tab.IsMuted);
+        tab.IsMuted = muted;
+        if (tab.Core is { } core) core.IsMuted = muted;
+        ShowToast(muted ? "Tab muted" : "Tab unmuted", tab.Title,
             muted ? Icons.Mute : Icons.Volume, null, 2200);
     }
 
@@ -4159,6 +4167,10 @@ public partial class MainWindow : Window
         Separator(MenuList, Resources);
         MenuList.Children.Add(PopupRow(Icons.Copy, "Duplicate tab", "",
             () => { ClosePopups(); NewTab(tab.IsNewTab ? Urls.Home : tab.Url, true); }));
+        var muted = tab.Core?.IsMuted ?? tab.IsMuted;
+        MenuList.Children.Add(PopupRow(muted ? Icons.Volume : Icons.Mute,
+            muted ? "Unmute tab" : "Mute tab", "",
+            () => { ClosePopups(); ToggleMuteTab(tab); }));
         MenuList.Children.Add(PopupRow(Icons.Pin, tab.IsPinned ? "Unpin tab" : "Pin tab",
             tab.IsPinned ? "" : "shrinks to its icon",
             () => { ClosePopups(); TogglePin(tab); }));

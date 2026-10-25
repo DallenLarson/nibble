@@ -156,6 +156,12 @@
                                     <DataTrigger Binding="{Binding IsAudible}" Value="True">
                                         <Setter TargetName="sound" Property="Visibility" Value="Visible" />
                                     </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                        <Setter TargetName="sound" Property="Visibility" Value="Visible" />
+                                        <Setter TargetName="sound" Property="Data" Value="{x:Static c:Icons.Mute}" />
+                                        <Setter TargetName="sound" Property="ToolTip" Value="This tab is muted" />
+                                        <Setter TargetName="sleep" Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding IsActive}" Value="True">
                                         <Setter TargetName="panel" Property="Fill" Value="{DynamicResource CardBg}" />
                                         <Setter TargetName="panel" Property="Stroke" Value="{DynamicResource HairlineStrong}" />
