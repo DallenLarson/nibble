@@ -1,5 +1,18 @@
 # Nibble changelog
 
+## 2.1.1 — keep tabs intact and show download progress
+
+- Preserve pages when WebView2 automatically recovers from utility or GPU process failures,
+  instead of replacing every tab with "This page stopped". Subframe failures and temporarily
+  unresponsive renderers also leave the main page intact. Log process failure details.
+- Show live download percentages, received/total bytes, and a progress bar in Downloads.
+  Unknown-size transfers show activity and bytes received. Completed files can be opened;
+  interrupted downloads show their reason instead of appearing ready to open.
+- Add browser regression coverage for process-failure handling and live downloads, and make
+  the calendar test use the selected day instead of a fixed date.
+
+See `docs/release-notes-v2.1.1.md` for validation and limitations.
+
 ## 2.1.0 — browsing reliability, PDFs, notes and calendar
 
 - Ignore superseded/canceled navigation completions instead of replacing a newer page with a

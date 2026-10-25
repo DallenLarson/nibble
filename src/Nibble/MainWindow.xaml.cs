@@ -116,7 +116,9 @@ public partial class MainWindow : Window
         public required CoreWebView2DownloadOperation Operation { get; init; }
         public Toast? Toast { get; set; }
         public string Name { get; init; } = "download";
-        public bool Finished { get; set; }
+        public Button? Row { get; set; }
+        public TextBlock? Status { get; set; }
+        public ProgressBar? Progress { get; set; }
     }
 
     private sealed class Toast
@@ -1627,14 +1629,25 @@ public partial class MainWindow : Window
 
     private void OnProcessFailed(ZTab tab, CoreWebView2 sender, CoreWebView2ProcessFailedEventArgs e)
     {
+        Store.LogError($"process failed: {e.ProcessFailedKind} reason={e.Reason} exit={e.ExitCode} description={e.ProcessDescription} url={tab.Url}");
+        HandleProcessFailure(tab, sender, e.ProcessFailedKind);
+    }
+
+    private void HandleProcessFailure(ZTab tab, CoreWebView2 sender, CoreWebView2ProcessFailedKind kind)
+    {
+        // Utility/GPU failures are shared across tabs and WebView2 recovers them itself.
+        // Navigating here used to destroy every healthy page after one utility exit.
+        // A subframe failure or a temporarily busy renderer must not replace the page either.
+        if (kind is not (CoreWebView2ProcessFailedKind.RenderProcessExited or
+            CoreWebView2ProcessFailedKind.BrowserProcessExited)) return;
+
         tab.IsBroken = true;
         tab.Title = "This page stopped";
-        Store.LogError($"process failed: {e.ProcessFailedKind} url={tab.Url}");
         try
         {
             sender.Navigate(Pages.ErrorUrl(tab.Url,
                 "The part of the browser that draws this page stopped. Reloading usually brings it back.",
-                e.ProcessFailedKind.ToString()));
+                kind.ToString()));
         }
         catch { /* nothing else to do */ }
     }
@@ -1649,9 +1662,11 @@ public partial class MainWindow : Window
         var download = new Download { Operation = operation, Name = name };
         download.Toast = ShowToast("Downloading", name, Icons.Download, null, 0, showProgress: true);
         _downloads.Insert(0, download);
+        if (PopupIsOpenFor(DownloadsButton)) PopulateDownloads();
 
         void Update()
         {
+            UpdateDownloadRow(download);
             if (download.Toast?.Progress is not { } bar) return;
             var total = operation.TotalBytesToReceive ?? 0UL;
             var ratio = total > 0 ? Math.Clamp(operation.BytesReceived / (double)total, 0.0, 1.0) : 0.06;
@@ -1664,18 +1679,17 @@ public partial class MainWindow : Window
             Update();
             if (operation.State == CoreWebView2DownloadState.Completed)
             {
-                download.Finished = true;
                 RemoveToast(download.Toast);
                 ShowToast("Downloaded", name, Icons.Download,
                     () => OpenDownloadedFile(operation.ResultFilePath), 6500);
             }
             else if (operation.State == CoreWebView2DownloadState.Interrupted)
             {
-                download.Finished = true;
                 RemoveToast(download.Toast);
                 ShowToast("Download failed", name, Icons.Close, null, 5000);
             }
         };
+        Update();
     }
 
     private void OnWebResourceRequested(ZTab tab, CoreWebView2 sender, CoreWebView2WebResourceRequestedEventArgs e)
@@ -2712,8 +2726,20 @@ public partial class MainWindow : Window
             ClosePopups();
             return;
         }
+        PopulateDownloads();
+        OpenPopup(MenuPopup, DownloadsButton);
+    }
+
+    private void PopulateDownloads()
+    {
         MenuTitle.Text = "DOWNLOADS";
         MenuList.Children.Clear();
+        foreach (var download in _downloads)
+        {
+            download.Row = null;
+            download.Status = null;
+            download.Progress = null;
+        }
 
         if (_downloads.Count == 0)
         {
@@ -2724,9 +2750,38 @@ public partial class MainWindow : Window
             foreach (var download in _downloads.Take(10))
             {
                 var item = download;
-                MenuList.Children.Add(PopupRow(Icons.Download, item.Name,
-                    item.Finished ? "open" : "in progress",
-                    item.Finished ? () => { ClosePopups(); OpenDownloadedFile(item.Operation.ResultFilePath); } : null));
+                var row = PopupRow(Icons.Download, item.Name, "", () =>
+                {
+                    if (item.Operation.State != CoreWebView2DownloadState.Completed) return;
+                    ClosePopups();
+                    OpenDownloadedFile(item.Operation.ResultFilePath);
+                });
+                row.ToolTip = item.Name;
+                var heading = (UIElement)row.Content;
+                row.Content = null;
+                var content = new StackPanel();
+                content.Children.Add(heading);
+                var status = new TextBlock
+                {
+                    FontSize = 11, Margin = new Thickness(24, 4, 0, 0),
+                    TextWrapping = TextWrapping.Wrap
+                };
+                status.SetResourceReference(TextBlock.ForegroundProperty, "Ink2");
+                content.Children.Add(status);
+                var progress = new ProgressBar
+                {
+                    Minimum = 0, Maximum = 100, Height = 4,
+                    Margin = new Thickness(24, 7, 0, 2), BorderThickness = new Thickness(0)
+                };
+                progress.SetResourceReference(ProgressBar.ForegroundProperty, "Accent");
+                progress.SetResourceReference(ProgressBar.BackgroundProperty, "Hairline");
+                content.Children.Add(progress);
+                row.Content = content;
+                item.Row = row;
+                item.Status = status;
+                item.Progress = progress;
+                UpdateDownloadRow(item);
+                MenuList.Children.Add(row);
             }
         }
 
@@ -2738,7 +2793,32 @@ public partial class MainWindow : Window
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"));
         }));
 
-        OpenPopup(MenuPopup, DownloadsButton);
+    }
+
+    private void UpdateDownloadRow(Download download)
+    {
+        if (download.Row is not { } row || download.Status is not { } status ||
+            download.Progress is not { } progress) return;
+        var operation = download.Operation;
+        var active = operation.State == CoreWebView2DownloadState.InProgress;
+        var total = operation.TotalBytesToReceive ?? 0UL;
+        var received = operation.BytesReceived;
+        var percent = total > 0 ? Math.Clamp(received * 100.0 / total, 0, 100) : 0;
+        var amount = total > 0
+            ? $"{Urls.FormatBytes(received)} / {Urls.FormatBytes(total)}"
+            : $"{Urls.FormatBytes(received)} received";
+        status.Text = operation.State switch
+        {
+            CoreWebView2DownloadState.Completed => $"Completed · {Urls.FormatBytes(received)} · Open file",
+            CoreWebView2DownloadState.Interrupted => $"Interrupted · {amount} · {operation.InterruptReason}",
+            _ when total > 0 => $"{percent:0}% · {amount}",
+            _ => amount
+        };
+        progress.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+        progress.IsIndeterminate = active && total == 0;
+        progress.Value = percent;
+        row.Cursor = operation.State == CoreWebView2DownloadState.Completed ? Cursors.Hand : Cursors.Arrow;
+        AutomationProperties.SetName(row, $"{download.Name}, {status.Text}");
     }
 
     private void Theme_Click(object sender, RoutedEventArgs e) => SetTheme(Theme.IsDark ? "Light" : "Dark");

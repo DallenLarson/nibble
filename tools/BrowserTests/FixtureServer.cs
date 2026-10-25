@@ -30,6 +30,20 @@ internal sealed class FixtureServer : IDisposable
                 var path = line?.Split(' ').ElementAtOrDefault(1) ?? "/";
                 while (!string.IsNullOrEmpty(await reader.ReadLineAsync())) { }
                 if (path == "/reset") return;
+                if (path is "/progress" or "/unknown-size" or "/interrupted")
+                {
+                    var downloadHeaders = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n" +
+                        "Content-Disposition: attachment; filename=progress.bin\r\nConnection: close\r\n";
+                    if (path != "/unknown-size") downloadHeaders += "Content-Length: 1048576\r\n";
+                    await stream.WriteAsync(Encoding.ASCII.GetBytes(downloadHeaders + "\r\n"));
+                    var chunk = new byte[65536];
+                    for (var i = 0; i < (path == "/interrupted" ? 4 : 16); i++)
+                    {
+                        await stream.WriteAsync(chunk);
+                        await Task.Delay(200);
+                    }
+                    return;
+                }
                 if (path == "/slow") await Task.Delay(1500);
                 var redirect = path == "/redirect";
                 var pdf = path is "/test.pdf" or "/download";

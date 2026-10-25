@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Automation;
+using Microsoft.Web.WebView2.Core;
 using Nibble;
 using Nibble.Services;
 
@@ -83,9 +85,11 @@ internal static class Program
                 await Until(async () => (await Js("document.getElementById('noteBody').value")).Contains("literal"));
                 Check("notes survive page reload", true);
                 await Capture("notes");
-                await Js("document.getElementById('calendarTab').click();document.getElementById('newEvent').click();document.getElementById('eventTitle').value='Meeting';document.getElementById('eventStart').value='2026-10-03T09:00';document.getElementById('eventEnd').value='2026-10-03T10:00';document.getElementById('eventForm').requestSubmit()");
+                // Keep the fixture on the selected day so editing works on any test date.
+                await Js("document.getElementById('calendarTab').click();document.getElementById('newEvent').click();document.getElementById('eventTitle').value='Meeting';document.getElementById('eventForm').requestSubmit()");
                 await Until(() => Task.FromResult(PlannerStore.Shared.Read().Events.Count == 1));
-                Check("calendar saves dated time range", PlannerStore.Shared.Read().Events[0].End == "2026-10-03T10:00");
+                Check("calendar saves dated time range", PlannerStore.Shared.Read().Events[0].Start.EndsWith("T09:00") &&
+                    PlannerStore.Shared.Read().Events[0].End.EndsWith("T10:00"));
                 await Js("document.getElementById('nextMonth').click();document.getElementById('prevMonth').click()");
                 Check("calendar renders a full month grid", await Js("document.querySelectorAll('#days button').length") == "42");
                 await Capture("calendar");
@@ -119,6 +123,73 @@ internal static class Program
                 Check("online PDF opens inside Nibble", !tab.IsBroken);
                 await Capture("pdf");
                 await Go(server.Url + "/ok");
+                await Js("window.retainedState='still here'");
+                foreach (var kind in new[] { CoreWebView2ProcessFailedKind.UtilityProcessExited,
+                    CoreWebView2ProcessFailedKind.GpuProcessExited, CoreWebView2ProcessFailedKind.FrameRenderProcessExited,
+                    CoreWebView2ProcessFailedKind.RenderProcessUnresponsive })
+                {
+                    Call(window, "HandleProcessFailure", tab, core, kind);
+                    await Task.Delay(100);
+                    Check($"{kind} preserves the page and its state", !tab.IsBroken &&
+                        core.Source == server.Url + "/ok" && await Js("window.retainedState") == "\"still here\"");
+                }
+                Call(window, "HandleProcessFailure", tab, core, CoreWebView2ProcessFailedKind.RenderProcessExited);
+                await Until(() => Task.FromResult(Pages.IsErrorPage(core.Source)));
+                Check("main renderer failure still shows recovery page", tab.IsBroken);
+                await Go(server.Url + "/ok");
+
+                var menu = (StackPanel)window.FindName("MenuList");
+                string DownloadLabel() => menu.Children.OfType<Button>().Select(AutomationProperties.GetName)
+                    .FirstOrDefault(n => n.StartsWith("progress.bin")) ?? "";
+                ProgressBar? DownloadBar() => menu.Children.OfType<Button>().Select(b => b.Content)
+                    .OfType<StackPanel>().SelectMany(p => p.Children.OfType<ProgressBar>()).FirstOrDefault();
+                CoreWebView2DownloadOperation? transfer = null;
+                void SaveDownload(object? sender, CoreWebView2DownloadStartingEventArgs e)
+                {
+                    transfer = e.DownloadOperation;
+                    e.ResultFilePath = Path.Combine(profile, Guid.NewGuid() + ".bin");
+                    e.Handled = true;
+                }
+                core.DownloadStarting += SaveDownload;
+                foreach (var route in new[] { "/progress", "/unknown-size", "/interrupted" })
+                {
+                    transfer = null;
+                    Call(window, "Navigate", tab, server.Url + route);
+                    await Until(() => Task.FromResult(transfer is not null && transfer.BytesReceived > 0));
+                    Call(window, "Downloads_Click", window, new RoutedEventArgs());
+                    await Until(() => Task.FromResult(DownloadBar() is { Visibility: Visibility.Visible }));
+                    if (route == "/unknown-size")
+                        Check("unknown download size shows indeterminate progress and bytes", DownloadBar()!.IsIndeterminate && DownloadLabel().Contains("received"));
+                    else
+                        Check("downloads menu shows percent and received/total bytes", DownloadLabel().Contains('%') && DownloadLabel().Contains(" / ") && DownloadBar()!.Value > 0);
+                    var initial = DownloadLabel();
+                    await Until(() => Task.FromResult(DownloadLabel() != initial));
+                    Check("download progress updates while menu stays open", true);
+                    if (route == "/progress")
+                    {
+                        var visual = (FrameworkElement)((System.Windows.Controls.Primitives.Popup)window.FindName("MenuPopup")).Child;
+                        visual.UpdateLayout();
+                        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                            (int)Math.Ceiling(visual.ActualWidth), (int)Math.Ceiling(visual.ActualHeight),
+                            96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                        bitmap.Render(visual);
+                        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                        using var image = File.Create(Path.Combine(profile, "download-progress.png"));
+                        encoder.Save(image);
+                    }
+                    await Until(() => Task.FromResult(transfer!.State != CoreWebView2DownloadState.InProgress));
+                    await Task.Delay(100);
+                    Check(route + " has correct final status", route == "/interrupted"
+                        ? DownloadLabel().Contains("Interrupted") && !DownloadLabel().Contains("Open file")
+                        : DownloadLabel().Contains("Completed") && DownloadLabel().Contains("Open file"));
+                    Check("finished download hides progress bar", DownloadBar()!.Visibility == Visibility.Collapsed);
+                    Call(window, "ClosePopups", false);
+                    Call(window, "Downloads_Click", window, new RoutedEventArgs());
+                    Check("reopening downloads preserves final status", DownloadLabel().Contains(route == "/interrupted" ? "Interrupted" : "Completed"));
+                    Call(window, "ClosePopups", false);
+                }
+                core.DownloadStarting -= SaveDownload;
                 await Js("document.getElementById('link').click()");
                 await Until(() => Task.FromResult(!tab.IsLoading && core.Source == server.Url + "/ok"));
                 Check("clicked redirect preserves its destination", !tab.IsBroken);
