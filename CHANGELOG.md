@@ -1,5 +1,16 @@
 # Nibble changelog
 
+## 2.1.2 — mute tabs from the tab menu
+
+- Right-click any tab and choose Mute tab or Unmute tab. Background tabs can be muted
+  without switching to them, and muting stays in effect when navigating within the tab.
+- Show a crossed-out speaker on muted tabs. The existing command-palette mute action
+  updates the same state and indicator.
+- Add WebView2 regression checks for background-tab muting, unmuting, navigation, and
+  synchronization with the command palette.
+
+See `docs/release-notes-v2.1.2.md` for validation.
+
 ## 2.1.1 — keep tabs intact and show download progress
 
 - Preserve pages when WebView2 automatically recovers from utility or GPU process failures,
